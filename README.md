@@ -1,19 +1,16 @@
-# Zettkjett
+# ZettKjett
 
 **TODO: Add description**
 
-## Installation
+## Discord
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `zettkjett` to your list of dependencies in `mix.exs`:
+To get a token, log in to discord in the browser, open up the web inspector
+(Ctrl/Cmd  + Shift + I), go to the "Application" tab and copy the value under
+localStorage named "token".
 
-```elixir
-def deps do
-  [{:zettkjett, "~> 0.1.0"}]
-end
-```
+https://www.reddit.com/r/discordapp/comments/5ncwpv/localstorage_missing/
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/zettkjett](https://hexdocs.pm/zettkjett).
+The reason for using that token instead of username and password is that it is
+less frowned upon by the developers. Not endorsed, per se, just less frowned upon.
 
+https://github.com/hammerandchisel/discord-api-docs/issues/69#issuecomment-223886862
