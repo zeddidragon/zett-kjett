@@ -1,10 +1,11 @@
-defmodule Message do
-  @enforce_keys [:id, :sender, :message, :sent_at]
+defmodule ZettKjett.Models.Message do
+  @enforce_keys [:id, :user_id, :message, :sent_at]
   defstruct [
     id: nil,
-    sender: nil,
+    user_id: nil,
     sent_at: nil,
-    message: nil
+    message: nil,
+    edited_at: nil
   ]
 
   def sort messages do

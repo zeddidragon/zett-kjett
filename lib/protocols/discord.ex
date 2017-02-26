@@ -1,10 +1,17 @@
 defmodule ZettKjett.Protocols.Discord do
   alias ZettKjett.Protocols.Discord.Rest
   use ZettKjett.Protocols.Base
-  @behaviour ZettKjett.Protocols.Base
+  @behaviour ZettKjett.Protocols.Servers
+
+  def start_link! pid do
+    raise "Not implemented"
+  end
 
   def me! do
     Rest.get('/users/@me') |> Map.get(:body)
+  end
+
+  def friends! do
   end
 
   def channels! guild do

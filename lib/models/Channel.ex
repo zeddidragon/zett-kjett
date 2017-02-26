@@ -1,5 +1,5 @@
-defmodule Channel do
-  @enforce_keys [:id, :server_id, :name]
+defmodule ZettKjett.Models.Channel do
+  @enforce_keys [:id]
   defstruct [
     id: nil,
     server_id: nil,

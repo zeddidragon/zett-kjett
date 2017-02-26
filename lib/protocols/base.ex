@@ -1,20 +1,27 @@
 defmodule ZettKjett.Protocols.Base do
-  use ZettKjett.Cache
   alias ZettKjett.Models.{Chat, User, Message}
-
-  def start_link do
-    init_cache()
-  end
-
+  @callback start_link!(pid) :: any
   @callback me!() :: User
-  def me do
-    cached :me, &me/0
-  end
-  @callback nick!(String.t) :: User
-  @callback friends!() : [Chat]
-  def friends do
-    cached :friends, &friends/0
-  end
+  @callback nick!(String.t) :: any
+  @callback friends!() :: [Chat]
+  @callback message!(Chat, String) :: any
 
-  @callback message!({id: String.t}, Message) : Message
+  defmacro __using__(_) do
+    quote do
+      use ZettKjett.Cache
+
+      def start_link listener do
+        init_cache()
+        start_link! listener
+      end
+
+      def me do
+        cached :me, &me!/0
+      end
+
+      def friends do
+        cached :friends, &friends!/0
+      end
+    end
+  end
 end

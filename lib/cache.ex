@@ -32,6 +32,10 @@ defmodule ZettKjett.Cache do
         Agent.update @namespace, &Map.put_new_lazy(&1, key, getter)
         Agent.get @namespace, &Map.get(&1, key)
       end
+
+      def cache key, value do
+        Agent.update @namespace, &Map.put(&1, key, value)
+      end
     end
   end
 end
