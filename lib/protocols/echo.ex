@@ -38,7 +38,7 @@ defmodule ZettKjett.Protocols.Echo do
     [chat()]
   end
 
-  def message! message do
+  def message! chat, message do
     time = :os.system_time
     message = %Message{
       id: time,
