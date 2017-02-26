@@ -7,7 +7,7 @@ defmodule Zettkjett.Mixfile do
      elixir: "~> 1.4",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps()]
+     deps: deps() ]
   end
 
   # Configuration for the OTP application
@@ -33,6 +33,6 @@ defmodule Zettkjett.Mixfile do
     [ {:ex_ncurses, git: "https://github.com/jfreeze/ex_ncurses.git"},
       {:httpotion, "~> 3.0.2"},
       {:tomlex, ">= 0.0.0"},
-      {:jsx, "~> 2.8.2"} ]
+      {:json, "~> 1.0"} ]
   end
 end

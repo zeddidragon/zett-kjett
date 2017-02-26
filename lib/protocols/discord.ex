@@ -1,15 +1,33 @@
 defmodule ZettKjett.Protocols.Discord do
   alias ZettKjett.Protocols.Discord.Rest
+  use ZettKjett.Cache
 
+  def start_link do
+    init_cache()
+  end
+
+  def me! do
+    Rest.get('/users/@me') |> Map.get(:body)
+  end
   def me do
-    Rest.get '/users/@me'
+    cached(:me, &me!/0)
   end
 
-  def guilds do
-    Rest.get '/users/@me/guilds'
+  def channels! guild do
+    Rest.get("/guilds/#{guild["id"]}/channels") |> Map.get(:body)
   end
 
-  def create_guild name do
+  def servers do
+    Rest.get("/users/@me/guilds") |> Map.get(:body)
+  end
+
+  def create_server name, options \\ %{} do
+    options = Map.put(options, :name, name)
+    Rest.post("/guilds", body: options) |> Map.get(:body)
+  end
+
+  def update_server id, options \\ %{} do
+    Rest.post("/guilds/#{id}", options) |> Map.get(:body)
   end
 end
 
@@ -42,12 +60,18 @@ defmodule ZettKjett.Protocols.Discord.Rest do
   end
 
   def process_request_body body do
-    :jsx.encode body
+    # Discord would give me a 400 Bad Request for all GET requests
+    # unless I put this check in.
+    if body == "" do
+      body
+    else
+      JSON.encode body
+    end
   end
 
   def process_response_body(body) do
     body
       |> IO.iodata_to_binary
-      |> :jsx.decode
+      |> JSON.decode
   end
 end
