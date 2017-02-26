@@ -4,6 +4,13 @@
 
 ## Discord
 
+Before you can use discord, you must insert a token in config.toml with the
+format
+```toml
+[discord]
+token = "<your token>"
+```
+
 To get a token, log in to discord in the browser, open up the web inspector
 (Ctrl/Cmd  + Shift + I), go to the "Application" tab and copy the value under
 localStorage named "token".

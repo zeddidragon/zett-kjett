@@ -12,6 +12,7 @@
   "httpotion": {:hex, :httpotion, "3.0.2", "525b9bfeb592c914a61a8ee31fdde3871e1861dfe805f8ee5f711f9f11a93483", [:mix], [{:ibrowse, "~> 4.2", [hex: :ibrowse, optional: false]}]},
   "ibrowse": {:hex, :ibrowse, "4.4.0", "2d923325efe0d2cb09b9c6a047b2835a5eda69d8a47ed6ff8bc03628b764e991", [:rebar3], []},
   "idna": {:hex, :idna, "1.2.0", "ac62ee99da068f43c50dc69acf700e03a62a348360126260e87f2b54eced86b2", [:rebar3], []},
+  "jsx": {:hex, :jsx, "2.8.2", "7acc7d785b5abe8a6e9adbde926a24e481f29956dd8b4df49e3e4e7bcc92a018", [:mix, :rebar3], []},
   "kcl": {:hex, :kcl, "0.6.6", "156de704ac2e118d9617a56a4703831cad57a1f70cbf3ecbab4cd2dd2f395037", [:mix], [{:curve25519, "~> 0.1", [hex: :curve25519, optional: false]}, {:ed25519, "~> 0.2", [hex: :ed25519, optional: false]}, {:poly1305, "~> 0.4", [hex: :poly1305, optional: false]}, {:salsa20, "~> 0.3", [hex: :salsa20, optional: false]}]},
   "metrics": {:hex, :metrics, "1.0.1", "25f094dea2cda98213cecc3aeff09e940299d950904393b2a29d191c346a8486", [:rebar3], []},
   "mimerl": {:hex, :mimerl, "1.0.2", "993f9b0e084083405ed8252b99460c4f0563e41729ab42d9074fd5e52439be88", [:rebar3], []},
@@ -22,4 +23,5 @@
   "socket": {:hex, :socket, "0.3.7", "68c029a8449fc6efc5f4c3bdf6d8b19ca94d3304e419f364c5cfc8b716f7c219", [:mix], []},
   "ssl_verify_fun": {:hex, :ssl_verify_fun, "1.1.1", "28a4d65b7f59893bc2c7de786dec1e1555bd742d336043fe644ae956c3497fbe", [:make, :rebar], []},
   "temp": {:hex, :temp, "0.4.2", "0004b79d8ef11d200be68585f252bb6429d35d1dc163c2b25c54bcc810d9a87d", [:mix], []},
+  "tomlex": {:hex, :tomlex, "0.0.5", "7431c9adcf3b9fdda92750649fadd84ab16c5a061c418709609b4ffef7a1981f", [:mix], []},
   "websocket_client": {:hex, :websocket_client, "1.1.0", "c1ac9162a2286d3ca747417b1717090e762becba1f9f0bde359cb0318b066636", [:rebar3], []}}

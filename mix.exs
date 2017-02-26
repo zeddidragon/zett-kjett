@@ -16,7 +16,8 @@ defmodule Zettkjett.Mixfile do
   def application do
     # Specify extra applications you'll use from Erlang/Elixir
     [ applications: [:httpotion],
-      extra_applications: [:logger] ]
+      extra_applications: [:logger],
+      mod: {ZettKjett, []} ]
   end
 
   # Dependencies can be Hex packages:
@@ -30,6 +31,8 @@ defmodule Zettkjett.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [ {:ex_ncurses, git: "https://github.com/jfreeze/ex_ncurses.git"},
-      {:httpotion, "~> 3.0.2"} ]
+      {:httpotion, "~> 3.0.2"},
+      {:tomlex, ">= 0.0.0"},
+      {:jsx, "~> 2.8.2"} ]
   end
 end
