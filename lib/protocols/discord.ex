@@ -1,32 +1,26 @@
 defmodule ZettKjett.Protocols.Discord do
   alias ZettKjett.Protocols.Discord.Rest
-  use ZettKjett.Cache
-
-  def start_link do
-    init_cache()
-  end
+  use ZettKjett.Protocols.Base
+  @behaviour ZettKjett.Protocols.Base
 
   def me! do
     Rest.get('/users/@me') |> Map.get(:body)
-  end
-  def me do
-    cached(:me, &me!/0)
   end
 
   def channels! guild do
     Rest.get("/guilds/#{guild["id"]}/channels") |> Map.get(:body)
   end
 
-  def servers do
+  def servers! do
     Rest.get("/users/@me/guilds") |> Map.get(:body)
   end
 
-  def create_server name, options \\ %{} do
+  def create_server! name, options \\ %{} do
     options = Map.put(options, :name, name)
     Rest.post("/guilds", body: options) |> Map.get(:body)
   end
 
-  def update_server id, options \\ %{} do
+  def update_server! id, options \\ %{} do
     Rest.post("/guilds/#{id}", options) |> Map.get(:body)
   end
 end
