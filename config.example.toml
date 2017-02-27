@@ -1,3 +1,7 @@
 # See README.md for how to acquire a token
 [discord]
+# enabled = true  # Uncomment to enable
 token = "<token>"
+
+[echo]
+enabled = true  # Uncomment to enable
