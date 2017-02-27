@@ -1,6 +1,9 @@
 # ZettKjett
 
-**TODO: Add description**
+When in a functional state, this program will allow you to use your terminal
+to chat in many different protocols.
+
+However, the project is still in early development and cannot do any of that.
 
 ## Discord
 
