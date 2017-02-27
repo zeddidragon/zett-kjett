@@ -51,7 +51,7 @@ defmodule ZettKjett.Protocols.Discord.Rest do
   @version Mix.Project.config[:version]
   @url "https://github.com/zeddidragon/zett-kjett"
   def process_request_headers headers do
-    token = Config.get[:Discord][:token]
+    token = Config.get[:Protocols][:Discord][:token]
     token || raise "Please insert discord token in config.toml"
     put_many_new headers, [
       {:"User-Agent", "ZettKjett (#{@url}, #{@version})"},

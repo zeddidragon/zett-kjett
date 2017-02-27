@@ -10,7 +10,7 @@ defmodule ZettKjett do
   end
 
   def connect do
-    for {protocol, config} <- Config.get do
+    for {protocol, config} <- (Config.get[:Protocols] || %{}) do
       if config[:enabled] do
         IO.puts "Connecting to #{protocol}..."
         ZettKjett.Protocol.start_link protocol

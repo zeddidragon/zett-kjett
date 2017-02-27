@@ -1,7 +1,7 @@
 # See README.md for how to acquire a token
-[Discord]
-# enabled = true  # Uncomment to enable
-token = "<token>"
 
-[Echo]
-enabled = true  # Uncomment to enable
+[Protocols]
+  [Protocols.Discord]
+  # enabled = true  # Uncomment to enable
+  token = "<token>"
+
