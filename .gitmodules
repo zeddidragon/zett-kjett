@@ -1,0 +1,3 @@
+[submodule "submodules/ex_ncurses"]
+	path = submodules/ex_ncurses
+	url = git@github.com:zeddidragon/ex_ncurses.git

@@ -2,12 +2,12 @@ defmodule Zettkjett.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :zettkjett,
-     version: "0.1.0",
-     elixir: "~> 1.4",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps() ]
+    [ app: :zettkjett,
+      version: "0.1.0",
+      elixir: "~> 1.4",
+      build_embedded: Mix.env == :prod,
+      start_permanent: Mix.env == :prod,
+      deps: deps() ]
   end
 
   # Configuration for the OTP application
@@ -30,7 +30,7 @@ defmodule Zettkjett.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [ {:ex_ncurses, git: "https://github.com/jfreeze/ex_ncurses.git"},
+    [ {:ex_ncurses, path: "./submodules/ex_ncurses"},
       {:httpotion, "~> 3.0.2"},
       {:tomlex, ">= 0.0.0"},
       {:json, "~> 1.0"} ]

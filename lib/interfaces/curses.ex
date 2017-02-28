@@ -9,7 +9,7 @@ defmodule ZettKjett.Interfaces.Curses do
 
   def start_link do
     initscr()
-    #win = initwin 10, 12, 1, 1
+    win = initwin 10, 12, 1, 1
     box win, 0, 0
     
     highlight = 0
