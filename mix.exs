@@ -32,7 +32,7 @@ defmodule Zettkjett.Mixfile do
   defp deps do
     [ {:httpotion, "~> 3.0.2"},
       {:tomlex, ">= 0.0.0"},
-      {:encurses, git: "https://github.com/sofuture/encurses.git"},
+      {:encurses, git: "https://github.com/zeddidragon/encurses.git"},
       {:json, "~> 1.0"} ]
   end
 end

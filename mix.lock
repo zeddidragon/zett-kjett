@@ -6,7 +6,7 @@
   "earmark": {:hex, :earmark, "1.1.1", "433136b7f2e99cde88b745b3a0cfc3fbc81fe58b918a09b40fce7f00db4d8187", [:mix], []},
   "ed25519": {:hex, :ed25519, "0.2.5", "13577a6ff5035468ffb63ac1b0a249020d78b1d771a6ec221d476a87144acc4d", [:mix], []},
   "elixir_make": {:git, "https://github.com/elixir-lang/elixir_make.git", "fb20cc4cefbf7ea20c4ec9b9a2623f758e362d6e", []},
-  "encurses": {:git, "https://github.com/sofuture/encurses.git", "56f3dc41a21dd2ce5afaf086f7ebfa6d121c6aae", []},
+  "encurses": {:git, "https://github.com/zeddidragon/encurses.git", "53cdde27d8877e9bf772d75d3ea4f74490f7cf7a", []},
   "equivalex": {:hex, :equivalex, "0.1.4", "3c6e00c47c6cbac63872e69eb2204ba71e0818afd9d0875a97389f7ff24f5ec8", [:mix], []},
   "ex_ncurses": {:git, "https://github.com/jfreeze/ex_ncurses.git", "2fd3ecb1c8a1c5e04ddb496bb8d57f30b619f59e", []},
   "hackney": {:hex, :hackney, "1.6.5", "8c025ee397ac94a184b0743c73b33b96465e85f90a02e210e86df6cbafaa5065", [:rebar3], [{:certifi, "0.7.0", [hex: :certifi, optional: false]}, {:idna, "1.2.0", [hex: :idna, optional: false]}, {:metrics, "1.0.1", [hex: :metrics, optional: false]}, {:mimerl, "1.0.2", [hex: :mimerl, optional: false]}, {:ssl_verify_fun, "1.1.1", [hex: :ssl_verify_fun, optional: false]}]},

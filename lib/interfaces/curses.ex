@@ -18,8 +18,16 @@ defmodule ZettKjett.Interfaces.Curses do
   def start_link do
     initscr()
     keypad 0, true
+    timeout 120000
+
     win = newwin 10, 12, 1, 1
     box win, 0, 0
+    keypad win, true
+    timeout win, 120000
+    noecho()
+    cbreak()
+    curs_set @curs_normal
+
     
     highlight = 1
     for index <- 1..@count do
@@ -32,9 +40,6 @@ defmodule ZettKjett.Interfaces.Curses do
     end
 
     refresh win
-    noecho()
-    curs_set @curs_normal
-
     menu_loop win, 0, 1
   end
 
