@@ -6,7 +6,7 @@ defmodule ZettKjett do
     if Mix.env != :test do
       connect()
     end
-    # ZettKjett.Interfaces.Curses.start_link
+    ZettKjett.Interfaces.Curses.start_link
     {:ok, self()}
   end
 

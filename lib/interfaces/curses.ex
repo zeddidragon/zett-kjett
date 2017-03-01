@@ -1,56 +1,62 @@
 defmodule ZettKjett.Interfaces.Curses do
-  import ExNcurses
+  import :encurses
 
   @items {
     "first",
     "second",
-    "third"
+    "third",
+    "fourth"
   }
+
+  @count tuple_size(@items)
+
+  @standout 65536
+ 
+  @curs_invisible 0
+  @curs_normal 1
 
   def start_link do
     initscr()
-    win = initwin 10, 12, 1, 1
+    keypad 0, true
+    win = newwin 10, 12, 1, 1
     box win, 0, 0
     
-    highlight = 0
-    for i <- 0..2 do
-      if highlight == i do
-        wattron win, A_STANDOUT
+    highlight = 1
+    for index <- 1..@count do
+      if highlight == index do
+        attron win, @standout
       else
-        wattroff win, A_STANDOUT
+        attroff win, @standout
       end
-      print_item win, 
-      item = String.pad_leading 
-      mvwprintf win, i + 1, 2, "%s", item
+      print_item win, index - 1
     end
 
-    wrefresh win
+    refresh win
     noecho()
-    curs_set 0
+    curs_set @curs_normal
 
-    menu_loop win, 0
+    menu_loop win, 0, 1
   end
 
-  def menu_loop win, index do
-    char = wgetchar win
-
-    print_item index
+  def menu_loop win, index, count do
+    char = getch win
+    print_item win, index
     index =
       case char do
-        'j' -> index - 1
-        'k' -> index + 1
+        107 -> rem index - 1 + @count, @count
+        106 -> rem index + 1, @count
         _ -> index
       end
+    mvwaddstr win, 2, 8, to_charlist(to_string(count))
 
-    wattron win, A_STANDOUT
-    print_item index
-    wattroff win, A_STANDOUT
-
-    menu_loop win, index
+    attron win, @standout
+    print_item win, index
+    attroff win, @standout
+    menu_loop win, index, count + 1
   end
 
   def print_item win, index do
     item = String.pad_leading elem(@items, index), 7
-    mwprintf win, index + 1, 2, "%s", item
+    mvwaddstr win, 1, 2 + index, to_charlist(item)
   end
 end

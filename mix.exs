@@ -30,9 +30,9 @@ defmodule Zettkjett.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [ {:ex_ncurses, path: "./submodules/ex_ncurses"},
-      {:httpotion, "~> 3.0.2"},
+    [ {:httpotion, "~> 3.0.2"},
       {:tomlex, ">= 0.0.0"},
+      {:encurses, git: "https://github.com/sofuture/encurses.git"},
       {:json, "~> 1.0"} ]
   end
 end
