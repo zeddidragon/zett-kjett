@@ -5,7 +5,7 @@
   "dns": {:hex, :dns, "0.0.4", "2e347a0a03e8345bc70c6d69ed08788103a3bec81b93e4636b1b432110835436", [:mix], [{:socket, "~> 0.3.5", [hex: :socket, optional: false]}]},
   "earmark": {:hex, :earmark, "1.1.1", "433136b7f2e99cde88b745b3a0cfc3fbc81fe58b918a09b40fce7f00db4d8187", [:mix], []},
   "ed25519": {:hex, :ed25519, "0.2.5", "13577a6ff5035468ffb63ac1b0a249020d78b1d771a6ec221d476a87144acc4d", [:mix], []},
-  "elixir_make": {:hex, :elixir_make, "0.4.0", "992f38fabe705bb45821a728f20914c554b276838433349d4f2341f7a687cddf", [:mix], []},
+  "elixir_make": {:git, "https://github.com/elixir-lang/elixir_make.git", "fb20cc4cefbf7ea20c4ec9b9a2623f758e362d6e", []},
   "equivalex": {:hex, :equivalex, "0.1.4", "3c6e00c47c6cbac63872e69eb2204ba71e0818afd9d0875a97389f7ff24f5ec8", [:mix], []},
   "ex_ncurses": {:git, "https://github.com/jfreeze/ex_ncurses.git", "2fd3ecb1c8a1c5e04ddb496bb8d57f30b619f59e", []},
   "hackney": {:hex, :hackney, "1.6.5", "8c025ee397ac94a184b0743c73b33b96465e85f90a02e210e86df6cbafaa5065", [:rebar3], [{:certifi, "0.7.0", [hex: :certifi, optional: false]}, {:idna, "1.2.0", [hex: :idna, optional: false]}, {:metrics, "1.0.1", [hex: :metrics, optional: false]}, {:mimerl, "1.0.2", [hex: :mimerl, optional: false]}, {:ssl_verify_fun, "1.1.1", [hex: :ssl_verify_fun, optional: false]}]},
