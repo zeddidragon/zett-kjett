@@ -35,7 +35,7 @@ defmodule ZettKjett.Protocols.Echo do
   end
 
   def friends! do
-    [chat()]
+    [{chat(), me!}]
   end
 
   def message! chat, message do

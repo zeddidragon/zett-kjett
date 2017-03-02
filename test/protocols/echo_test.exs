@@ -13,7 +13,7 @@ defmodule ZettKjett.Protocols.EchoTest do
   end
 
   test "friends returns a list of chats" do
-    assert [%Chat{id: 1, user_id: :me}] = Echo.friends
+    assert [{%Chat{id: 1, user_id: :me}, %User{id: :me}}] = Echo.friends
   end
 
   test "sending/receiving of messages" do

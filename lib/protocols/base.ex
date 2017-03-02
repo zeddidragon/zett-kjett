@@ -3,7 +3,7 @@ defmodule ZettKjett.Protocols.Base do
   @callback start_link!(pid) :: any
   @callback me!() :: User
   @callback nick!(String.t) :: any
-  @callback friends!() :: [Chat]
+  @callback friends!() :: [{Chat, User}]
   @callback message!(Chat, String) :: any
 
   defmacro __using__(_) do
