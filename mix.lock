@@ -22,6 +22,7 @@
   "poison": {:hex, :poison, "2.2.0", "4763b69a8a77bd77d26f477d196428b741261a761257ff1cf92753a0d4d24a63", [:mix], []},
   "poly1305": {:hex, :poly1305, "0.4.5", "239d19597af369e2b570aed7f2a05e1a999a0a372774b28bcf387f47bd7958d4", [:mix], [{:chacha20, "~> 0.3", [hex: :chacha20, optional: false]}, {:equivalex, "~> 0.1", [hex: :equivalex, optional: false]}]},
   "porcelain": {:hex, :porcelain, "2.0.3", "2d77b17d1f21fed875b8c5ecba72a01533db2013bd2e5e62c6d286c029150fdc", [:mix], []},
+  "remix": {:hex, :remix, "0.0.2", "f06115659d8ede8d725fae1708920ef73353a1b39efe6a232d2a38b1f2902109", [:mix], []},
   "salsa20": {:hex, :salsa20, "0.3.4", "d2ca110888879eccef9d69241bbf9a3260cdfeda3f71236cbc30b03dfe5433b9", [:mix], []},
   "socket": {:hex, :socket, "0.3.7", "68c029a8449fc6efc5f4c3bdf6d8b19ca94d3304e419f364c5cfc8b716f7c219", [:mix], []},
   "ssl_verify_fun": {:hex, :ssl_verify_fun, "1.1.1", "28a4d65b7f59893bc2c7de786dec1e1555bd742d336043fe644ae956c3497fbe", [:make, :rebar], []},

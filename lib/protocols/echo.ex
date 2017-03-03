@@ -29,16 +29,15 @@ defmodule ZettKjett.Protocols.Echo do
   defp chat do
     %Chat{
       id: 1,
-      protocol: __MODULE__,
       user_id: :me
     }
   end
 
   def friends! do
-    [{chat(), me!}]
+    [{chat(), me!()}]
   end
 
-  def message! chat, message do
+  def tell! chat, message do
     time = :os.system_time
     message = %Message{
       id: time,
