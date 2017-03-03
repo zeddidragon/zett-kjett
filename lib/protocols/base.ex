@@ -4,7 +4,7 @@ defmodule ZettKjett.Protocols.Base do
   @callback me!() :: User
   @callback nick!(String.t) :: any
   @callback friends!() :: [{Chat, User}]
-  @callback message!(Chat, String) :: any
+  @callback tell!(Chat, String) :: any
 
   defmacro __using__(_) do
     quote do
@@ -22,6 +22,19 @@ defmodule ZettKjett.Protocols.Base do
       def friends do
         cached :friends, &friends!/0
       end
+
+      def format_user user do 
+        user.name
+      end
+
+      def format_user_tell user do
+        user.name
+      end
+
+      defoverridable [
+        format_user: 1,
+        format_user_tell: 1
+      ]
     end
   end
 end
