@@ -15,9 +15,17 @@ defmodule Zettkjett.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     # Specify extra applications you'll use from Erlang/Elixir
-    [ applications: [:httpotion],
+    [ applications: applications(Mix.env),
       extra_applications: [:logger],
       mod: {ZettKjett, []} ]
+  end
+
+  defp applications :dev do
+    applications(:all)# ++ [:remix]
+  end
+
+  defp applications _ do
+    [:httpotion]
   end
 
   # Dependencies can be Hex packages:
@@ -31,6 +39,7 @@ defmodule Zettkjett.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [ {:httpotion, "~> 3.0.2"},
+      # {:remix, "~> 0.0.1", only: :dev},
       {:tomlex, ">= 0.0.0"},
       {:encurses, git: "https://github.com/zeddidragon/encurses.git"},
       {:json, "~> 1.0"} ]
