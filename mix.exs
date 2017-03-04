@@ -21,7 +21,7 @@ defmodule Zettkjett.Mixfile do
   end
 
   defp applications :dev do
-    applications(:all) ++ [:remix]
+    applications(:all)
   end
 
   defp applications _ do
@@ -39,7 +39,6 @@ defmodule Zettkjett.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [ {:httpotion, "~> 3.0.2"},
-      {:remix, "~> 0.0.1", only: :dev},
       {:tomlex, ">= 0.0.0"},
       {:encurses, git: "https://github.com/zeddidragon/encurses.git"},
       {:json, "~> 1.0"} ]
