@@ -13,6 +13,8 @@ defmodule ZettKjett.Protocols.Echo do
     receive do
       {:message, message}->
         send listener, {:message, chat(), me(), message}
+      {:nick, name}->
+        send listener, {:nick, me()}
     end
     loop listener
   end
@@ -23,7 +25,7 @@ defmodule ZettKjett.Protocols.Echo do
 
   def nick! name do
     cache :me, %User{id: :me, name: name}
-    me()
+    send __MODULE__, {:nick, name}
   end
 
   defp chat do

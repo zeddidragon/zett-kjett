@@ -5,10 +5,10 @@ defmodule ZettKjett.Interfaces.IO do
   end
   
   defp system message do
-    IO.puts "=== " <> message 
+    IO.puts "\r=== " <> message 
   end
   defp error message do
-    IO.puts "ERROR: " <> message
+    IO.puts "\rERROR: " <> message
   end
 
   def message_loop do
@@ -17,6 +17,8 @@ defmodule ZettKjett.Interfaces.IO do
         system "Now talking with " <> user.name
       {{:message, _, user, message}, _} ->
         IO.puts "\r <#{user.name}> " <> message.message
+      {{:nick, user}, _} ->
+        system "Nick changed to " <> user.name
       message ->
         message |> inspect |> system
     end
