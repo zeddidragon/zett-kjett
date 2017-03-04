@@ -58,6 +58,13 @@ defmodule ZettKjett do
     end
   end
 
+  def nick name do
+    Agent.get @state, fn
+      %{protocol: protocol} -> protocol.nick! name
+      _ -> send @interface, {:error, :no_protocol_selected}
+    end
+  end
+
   def friends do
     flat_map_protocols fn p -> p.friends end
   end
