@@ -1,6 +1,5 @@
 defmodule ZettKjett.Protocols.Discord do
   alias ZettKjett.Protocols.Discord.Rest
-  use ZettKjett.Protocols.Base
   @behaviour ZettKjett.Protocols.Servers
   alias ZettKjett.Models.{Server, Channel, Chat, User, Message}
 

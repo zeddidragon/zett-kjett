@@ -32,6 +32,7 @@ defmodule ZettKjett do
 
   def connect listener do
     protocols = Config.get[:Protocols] || %{}
+    ZettKjett.Protocol.start_link
     for {protocol, config} <- protocols, config[:enabled] do
       IO.puts "Connecting to #{protocol}..."
       ZettKjett.Protocol.start_link protocol, listener
@@ -68,13 +69,14 @@ defmodule ZettKjett do
   end
 
   def nick name do
-    Agent.get @state, fn
-      %{protocol: protocol} ->
-        case protocol.nick! name do
-          :not_provided -> {:error, :global_nick_not_provided}
-          _ -> {:ok}
-        end
-      _ -> send @interface, {:error, :no_protocol_selected}
+    protocol = Agent.get @state, &Map.get(&1, :protocol)
+    cond do
+      !protocol ->
+        {:error, :no_protocol_selected}
+      !function_exported? protocol, :nick, 1 ->
+        {:error, :feature_missing}
+      true ->
+        protocol.nick name
     end
   end
 

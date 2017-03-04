@@ -65,7 +65,7 @@ defmodule ZettKjett.Interfaces.IO do
   end
 
   defp compare_protocols protocols, string do
-    srting = String.downcase string
+    string = String.downcase string
     Enum.sort_by protocols, fn protocol ->
       protocol
         |> protocol_name()
@@ -83,7 +83,7 @@ defmodule ZettKjett.Interfaces.IO do
     protocols()
   end
 
-  defp run_command "switch", [target | args] do
+  defp run_command "switch", [target | _] do
     switch target
   end
   defp run_command "switch", _ do
