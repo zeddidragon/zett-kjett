@@ -22,3 +22,6 @@ erl_crash.dump
 # Secret variables
 config.exs
 config.toml
+
+# It's tmp
+/tmp

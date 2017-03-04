@@ -4,13 +4,42 @@ defmodule ZettKjett.Protocols.Discord do
   alias ZettKjett.Models.{Server, Channel, Chat, User, Message}
 
   def start_link listener do
-    {:ok, pid} = Task.start_link fn -> loop(listener) end
+    {:ok, pid} = Task.start_link fn ->
+      socket = connect_websocket()
+      loop(listener, socket)
+    end
     Process.register pid, __MODULE__
     {:ok, pid}
   end
 
-  defp loop listener do
-    receive do
+  @path "./tmp/discord-ws"
+  defp connect_websocket 3 do: raise "Failed 3 times to connect to websocket"
+  defp connect_websocket attempts // 0 do
+    ws_url =
+      case File.read @path do
+        {:ok, url} -> url
+        _ ->
+          url = Rest.get("/gateway")
+            |> Map.get(:body)
+            |> Map.get("url")
+          File.mkdir! "./tmp/"
+          file = File.open @path, [:write]
+          IO.binwrite file, url
+          File.close file
+          url
+      end
+    case Socket.Web.connect ws_url do
+      {:ok, socket} -> socket
+      _ ->
+        File.rm @path
+        connect_websocket attempts + 1
+    end
+  end
+
+  defp loop listener, socket do
+    Socket.Web.recv! socket do
+      {:ping, _} ->
+        Socket.Web.send! socket, {:pong, ""}
       message -> IO.inspect(message)
     end
     loop listener
