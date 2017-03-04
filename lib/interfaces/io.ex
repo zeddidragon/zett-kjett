@@ -13,6 +13,8 @@ defmodule ZettKjett.Interfaces.IO do
 
   def message_loop do
     receive do
+      {{:switch_protocol}, protocol} ->
+        system "Protocol changed to " <> protocol_name(protocol)
       {{:join_chat, _, user}, _} ->
         system "Now talking with " <> user.name
       {{:message, _, user, message}, _} ->
@@ -48,12 +50,44 @@ defmodule ZettKjett.Interfaces.IO do
   defp compare_friends friends, string do
     string = String.downcase string
     Enum.sort_by friends, fn {{_, user}, _} ->
-      -String.jaro_distance(String.downcase(user.name), string)
+      user.name
+        |> String.downcase
+        |> String.jaro_distance(string)
+        |> Kernel.-
+    end
+  end
+
+  defp protocol_name module do
+    module
+      |> inspect()
+      |> String.split(".")
+      |> List.last
+  end
+
+  defp compare_protocols protocols, string do
+    srting = String.downcase string
+    Enum.sort_by protocols, fn protocol ->
+      protocol
+        |> protocol_name()
+        |> String.downcase
+        |> String.jaro_distance(string)
+        |> Kernel.-
     end
   end
 
   defp tell_friend friend, string do
     ZettKjett.tell friend, string
+  end
+  
+  defp run_command "protocols", _ do
+    protocols()
+  end
+
+  defp run_command "switch", [target | args] do
+    switch target
+  end
+  defp run_command "switch", _ do
+    error "Usage: \"/switch <protocol>\""
   end
 
   defp run_command "friends", _ do
@@ -74,8 +108,22 @@ defmodule ZettKjett.Interfaces.IO do
     nick Enum.join(args, " ")
   end
 
-  defp run_command [unknown | _] do
+  defp run_command unknown, _ do
     error "Unknown function: /" <> unknown
+  end
+
+  def protocols do
+    system "PROTOCOLS"
+    for protocol <- ZettKjett.protocols do
+      system " " <> protocol_name(protocol)
+    end
+  end
+
+  def switch target do
+    ZettKjett.protocols
+      |> compare_protocols(target)
+      |> hd()
+      |> ZettKjett.switch()
   end
 
   def friends do

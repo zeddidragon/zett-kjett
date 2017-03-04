@@ -51,6 +51,15 @@ defmodule ZettKjett do
     end
   end
 
+  def protocols do
+    Agent.get @state, &Map.get(&1, :protocols)
+  end
+
+  def switch protocol do
+    Agent.update @state, &Map.put(&1, :protocol, protocol)
+    send @interface, {{:switch_protocol}, protocol}
+  end
+
   def me do
     Agent.get @state, fn
       %{protocol: protocol} -> protocol.me

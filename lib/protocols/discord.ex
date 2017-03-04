@@ -2,16 +2,44 @@ defmodule ZettKjett.Protocols.Discord do
   alias ZettKjett.Protocols.Discord.Rest
   use ZettKjett.Protocols.Base
   @behaviour ZettKjett.Protocols.Servers
+  alias ZettKjett.Models.{Server, Channel, Chat, User, Message}
 
-  def start_link! pid do
-    raise "Not implemented"
+  def start_link! listener do
+    {:ok, pid} = Task.start_link fn -> loop(listener) end
+    Process.register pid, __MODULE__
+    {:ok, pid}
+  end
+
+  defp loop listener do
+    receive do
+      message -> IO.inspect(message)
+    end
+    loop listener
+  end
+
+  defp normalize_user obj do
+    %User{id: obj["id"], name: obj["username"]}
+  end
+
+  def normalize_dm obj do
+    user = normalize_user(obj["recipient"])
+    {%Chat{id: obj["id"], user_id: user.id }, user}
   end
 
   def me! do
-    Rest.get('/users/@me') |> Map.get(:body)
+    Rest.get("/users/@me")
+      |> Map.get(:body)
+      |> normalize_user()
+  end
+
+  def nick! name do
+    Rest.patch("/users/@me", body: %{username: name})
   end
 
   def friends! do
+    Rest.get("/users/@me/channels")
+      |> Map.get(:body)
+      |> Enum.map(&normalize_dm(&1))
   end
 
   def channels! guild do
@@ -24,11 +52,13 @@ defmodule ZettKjett.Protocols.Discord do
 
   def create_server! name, options \\ %{} do
     options = Map.put(options, :name, name)
-    Rest.post("/guilds", body: options) |> Map.get(:body)
+    Rest.post("/guilds", body: options)
+      |> Map.get(:body)
   end
 
   def update_server! id, options \\ %{} do
-    Rest.post("/guilds/#{id}", options) |> Map.get(:body)
+    Rest.post("/guilds/#{id}", options)
+      |> Map.get(:body)
   end
 end
 
