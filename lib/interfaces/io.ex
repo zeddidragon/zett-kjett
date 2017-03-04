@@ -13,9 +13,9 @@ defmodule ZettKjett.Interfaces.IO do
 
   def message_loop do
     receive do
-      {:join_chat, protocol, chat, user} ->
+      {{:join_chat, chat, user}, _} ->
         system "Now talking with " <> user.name
-      {:message, _, _, user, message} ->
+      {{:message, _, user, message}, _} ->
         IO.puts "<#{user.name}>" <> message.message
       message ->
         message |> inspect |> system
@@ -43,7 +43,7 @@ defmodule ZettKjett.Interfaces.IO do
   end
 
   defp compare_friends friends, string do
-    Enum.sort_by friends, fn {protocol, {chat, user}} ->
+    Enum.sort_by friends, fn {{_, user}, _} ->
       -String.jaro_distance(String.downcase(user.name), string)
     end
   end
@@ -69,7 +69,7 @@ defmodule ZettKjett.Interfaces.IO do
 
   def friends do
     system "FRIENDS"
-    for {chat, user} <- ZettKjett.friends do
+    for {{_, user}, _} <- ZettKjett.friends do
       system " " <> user.name
     end
   end

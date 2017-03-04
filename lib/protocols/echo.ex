@@ -2,18 +2,17 @@ defmodule ZettKjett.Protocols.Echo do
   use ZettKjett.Protocols.Base
   @behaviour ZettKjett.Protocols.Base
   alias ZettKjett.Models.{Chat, User, Message}
-  @protocol __MODULE__
 
   def start_link! listener do
     {:ok, pid} = Task.start_link fn -> loop(listener) end
-    Process.register pid, @protocol
+    Process.register pid, __MODULE__
     {:ok, pid}
   end
 
   defp loop listener do
     receive do
       {:message, message}->
-        send listener, {:message, @protocol, chat(), me!(), message}
+        send listener, {:message, chat(), me!(), message}
     end
     loop listener
   end
@@ -47,7 +46,7 @@ defmodule ZettKjett.Protocols.Echo do
       user_id: :me,
       message: message
     }
-    send @protocol, {:message, message}
+    send __MODULE__, {:message, message}
     message
   end
 end

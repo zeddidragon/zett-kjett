@@ -17,8 +17,7 @@ defmodule ZettKjett do
 
   def message_loop do
     receive do
-      message ->
-        send @interface, message
+      message -> send @interface, message
     end
     message_loop()
   end
@@ -47,7 +46,7 @@ defmodule ZettKjett do
   def flat_map_protocols cb do
     Agent.get @state, fn %{protocols: protocols} ->
       Enum.flat_map protocols, fn protocol ->
-        Enum.map cb.(protocol), fn result -> {protocol, result} end
+        Enum.map cb.(protocol), fn result -> {result, protocol} end
       end
     end
   end
@@ -70,10 +69,10 @@ defmodule ZettKjett do
     end
   end
 
-  def tell {protocol, {chat, user}}, string do
+  def tell {{chat, user}, protocol}, string do
     Agent.update @state,
       &Map.merge(&1, %{chat: chat, protocol: protocol})
-    send @interface, {:join_chat, protocol, chat, user}
+    send @interface, {{:join_chat, chat, user}, protocol}
     protocol.tell! chat, string
   end
 end
