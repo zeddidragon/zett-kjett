@@ -134,7 +134,10 @@ defmodule ZettKjett.Interfaces.IO do
   end
 
   def nick name do
-    ZettKjett.nick name
+    case ZettKjett.nick name do
+      {:error, message} -> message |> to_string |> error
+      _ -> {:ok}
+    end
   end
 
   defp message message do

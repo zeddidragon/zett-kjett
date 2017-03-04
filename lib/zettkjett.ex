@@ -69,7 +69,11 @@ defmodule ZettKjett do
 
   def nick name do
     Agent.get @state, fn
-      %{protocol: protocol} -> protocol.nick! name
+      %{protocol: protocol} ->
+        case protocol.nick! name do
+          :not_provided -> {:error, :global_nick_not_provided}
+          _ -> {:ok}
+        end
       _ -> send @interface, {:error, :no_protocol_selected}
     end
   end

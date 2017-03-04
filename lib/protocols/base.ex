@@ -31,9 +31,14 @@ defmodule ZettKjett.Protocols.Base do
         user.name
       end
 
+      def nick! _ do
+        :not_provided
+      end
+
       defoverridable [
         format_user: 1,
-        format_user_tell: 1
+        format_user_tell: 1,
+        nick!: 1
       ]
     end
   end

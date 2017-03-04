@@ -26,15 +26,15 @@ defmodule ZettKjett.Protocols.Discord do
     {%Chat{id: obj["id"], user_id: user.id }, user}
   end
 
+  def normalize_channel obj do
+    %Channel{id: obj["id"]}
+  end
+
   def me! do
     {:ok, user} = Rest.get("/users/@me")
       |> Map.get(:body)
     user
       |> normalize_user()
-  end
-
-  def nick! name do
-    Rest.patch("/users/@me", body: %{username: name})
   end
 
   def friends! do
@@ -44,12 +44,15 @@ defmodule ZettKjett.Protocols.Discord do
       |> Enum.map(&normalize_dm(&1))
   end
 
-  def channels! guild do
-    Rest.get("/guilds/#{guild["id"]}/channels") |> Map.get(:body)
-  end
-
   def servers! do
     Rest.get("/users/@me/guilds") |> Map.get(:body)
+  end
+
+  def channels! server do
+    {:ok, channels} = Rest.get("/guilds/#{server.id}/channels")
+      |> Map.get(:body)
+    channels
+      |> Enum.map(&normalize_channel(&1))
   end
 
   def create_server! name, options \\ %{} do
