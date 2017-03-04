@@ -27,8 +27,9 @@ defmodule ZettKjett.Protocols.Discord do
   end
 
   def me! do
-    Rest.get("/users/@me")
+    {:ok, user} = Rest.get("/users/@me")
       |> Map.get(:body)
+    user
       |> normalize_user()
   end
 
@@ -37,8 +38,9 @@ defmodule ZettKjett.Protocols.Discord do
   end
 
   def friends! do
-    Rest.get("/users/@me/channels")
+    {:ok, channels} = Rest.get("/users/@me/channels")
       |> Map.get(:body)
+    channels
       |> Enum.map(&normalize_dm(&1))
   end
 
