@@ -1,5 +1,5 @@
 defmodule ZettKjett do
-  alias ZettKjett.Config
+  alias ZettKjett.{Config, Protocol}
   @state __MODULE__
   @interface ZettKjett.Interface
 
@@ -32,10 +32,10 @@ defmodule ZettKjett do
 
   def connect listener do
     protocols = Config.get[:Protocols] || %{}
-    ZettKjett.Protocol.start_link
+    Protocol.start_link
     for {protocol, config} <- protocols, config[:enabled] do
       IO.puts "Connecting to #{protocol}..."
-      ZettKjett.Protocol.start_link protocol, listener
+      Protocol.connect protocol, listener
     end
   end
 
@@ -56,27 +56,29 @@ defmodule ZettKjett do
     Agent.get @state, &Map.get(&1, :protocols)
   end
 
+  def protocol do
+    Agent.get @state, fn
+      %{protocol: ret} -> ret
+      _ -> nil
+    end
+  end
+
   def switch protocol do
     Agent.update @state, &Map.put(&1, :protocol, protocol)
     send @interface, {{:switch_protocol}, protocol}
   end
 
   def me do
-    Agent.get @state, fn
-      %{protocol: protocol} -> protocol.me
-      _ -> nil
-    end
+    Protocol.me protocol()
   end
 
   def nick name do
-    protocol = Agent.get @state, &Map.get(&1, :protocol)
-    cond do
-      !protocol ->
-        {:error, :no_protocol_selected}
-      !function_exported? protocol, :nick, 1 ->
-        {:error, :feature_missing}
-      true ->
-        protocol.nick name
+    if proto = protocol() do
+    if !Protocol.nick proto, name do
+      send @interface, {{:error, :global_nick_not_implemented}, proto}
+    end
+    else
+      send @interface, {{:error, :no_protocol_selected}, nil}
     end
   end
 
@@ -86,15 +88,15 @@ defmodule ZettKjett do
 
   def tell string do
     Agent.get @state, fn
-      %{protocol: protocol, chat: chat} -> protocol.tell! chat, string
-      _ -> send @interface, {:error, :no_chat_joined}
+      %{protocol: protocol, chat: chat} ->
+        Protocol.tell protocol, chat, string
+      _ -> send @interface, {{:error, :no_chat_joined}, nil}
     end
   end
 
   def tell {{chat, user}, protocol}, string do
-    Agent.update @state,
-      &Map.merge(&1, %{chat: chat, protocol: protocol})
+    Agent.update @state, &Map.merge(&1, %{chat: chat, protocol: protocol})
     send @interface, {{:join_chat, chat, user}, protocol}
-    protocol.tell! chat, string
+    Protocol.tell protocol, chat, string
   end
 end

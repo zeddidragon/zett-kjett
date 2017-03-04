@@ -5,13 +5,14 @@ defmodule ZettKjett.Protocol do
 
   def connect name, listener do
     module = Module.concat([ZettKjett, Protocols, name])
-    {:ok, pid} =
+    {:ok, cache} =
+      Agent.start_link fn -> %{} end
+    {:ok, loop} =
       Task.start_link fn ->
-        cache = Agent.start_link fn -> %{} end
         message_loop(module, name, listener, cache)
       end
-    module.start_link pid
-    Agent.update __MODULE__, &Map.put(&1, name, {module, pid})
+    module.start_link loop
+    Agent.update __MODULE__, &Map.put(&1, name, {module, loop, cache})
     name
   end
 
@@ -27,28 +28,38 @@ defmodule ZettKjett.Protocol do
   end
 
   defp cache protocol, key, value do
-    {module, pid} = get_protocol protocol
-    Agent.update pid, &Map.put(&1, key, value)
+    {_, _, cache} = get_protocol protocol
+    Agent.update cache, &Map.put(&1, key, value)
   end
   defp cached protocol, key, getter do
-    {module, pid} = get_protocol protocol
-    Agent.update pid, &Map.put_new_lazy(&1, key, fn -> getter.(module) end)
-    Agent.get pid, &Map.get(&1, key)
+    {module, _, cache} = get_protocol protocol
+    Agent.update cache, &Map.put_new_lazy(&1, key, fn -> getter.(module) end)
+    Agent.get cache, &Map.get(&1, key)
   end
 
   def me protocol do
-    cached protocol, :me, &me!/1
+    protocol && cached protocol, :me, &me!/1
   end
-  defp me! protocol do
-    {module, pid} = get_protocol protocol
+  defp me! module do
     module.me
+  end
+
+  def nick protocol, name do
+    {module, _, _} = get_protocol protocol
+    if function_exported? module, :nick, 1 do
+      module.nick name
+    end
   end
 
   def friends protocol do
     cached protocol, :friends, &friends!/1
   end
-  defp friends! protocol do
-    {module, pid} = get_protocol protocol
+  defp friends! module do
     module.friends
+  end
+
+  def tell protocol, chat, message do
+    {module, _, _} = get_protocol protocol
+    module.tell chat, message
   end
 end

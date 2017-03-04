@@ -57,11 +57,8 @@ defmodule ZettKjett.Interfaces.IO do
     end
   end
 
-  defp protocol_name module do
-    module
-      |> inspect()
-      |> String.split(".")
-      |> List.last
+  defp protocol_name protocol do
+    to_string protocol
   end
 
   defp compare_protocols protocols, string do
