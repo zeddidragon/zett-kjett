@@ -10,4 +10,4 @@ token = "<token>"
 # enabled = true  # Uncomment to enable
 
 [Interfaces.Curses]
-# enabled = true
+enabled = true

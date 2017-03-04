@@ -15,16 +15,16 @@ defmodule ZettKjett.Interfaces.IO do
     receive do
       {:join_chat, protocol, chat, user} ->
         system "Now talking with " <> user.name
+      {:message, _, _, user, message} ->
+        IO.puts "<#{user.name}>" <> message.message
       message ->
-        message |> inspect |> IO.puts
+        message |> inspect |> system
     end
     message_loop()
   end
 
   def input_loop do
-    me = ZettKjett.me
-    prompt = me && me.name || ""
-    IO.gets(prompt <> "> ")
+    IO.gets("> ")
       |> String.trim
       |> parse_input
     input_loop()
