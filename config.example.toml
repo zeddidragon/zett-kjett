@@ -4,11 +4,10 @@
 # enabled = true  # Uncomment to enable
 token = "<token>"
 
-
 # Only one interface can be enabled at a time
 # The first enabled interface will be selected
 [Interfaces.IO]
-enabled = true  # Uncomment to enable
+# enabled = true  # Uncomment to enable
 
 [Interfaces.Curses]
-# enabled = true
+enabled = true
