@@ -83,7 +83,7 @@ defmodule ZettKjett do
   end
 
   def friends do
-    flat_map_protocols fn p -> p.friends end
+    flat_map_protocols &Protocol.friends/1
   end
 
   def tell string do
@@ -94,9 +94,21 @@ defmodule ZettKjett do
     end
   end
 
-  def tell {{chat, user}, protocol}, string do
+  def tell {{user, chat}, protocol}, string do
     Agent.update @state, &Map.merge(&1, %{chat: chat, protocol: protocol})
     send @interface, {{:join_chat, chat, user}, protocol}
     Protocol.tell protocol, chat, string
+  end
+
+  def history do
+    Agent.get @state, fn
+      %{protocol: protocol, chat: chat} ->
+        Protocol.history protocol, chat
+      _ -> send @interface, {{:error, :no_protocol_selected}, nil}
+    end
+  end
+
+  def channels do
+    flat_map_protocols Protocol.channels/1
   end
 end

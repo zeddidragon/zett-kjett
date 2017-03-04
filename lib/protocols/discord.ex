@@ -20,47 +20,47 @@ defmodule ZettKjett.Protocols.Discord do
     %User{id: obj["id"], name: obj["username"]}
   end
 
-  def normalize_dm obj do
+  defp normalize_dm obj do
     user = normalize_user(obj["recipient"])
-    {%Chat{id: obj["id"], user_id: user.id }, user}
+    {user, %Chat{id: obj["id"], user_id: user.id }}
   end
 
-  def normalize_channel obj do
+  defp normalize_channel obj do
     %Channel{id: obj["id"]}
   end
 
-  def me! do
+  def me do
     {:ok, user} = Rest.get("/users/@me")
       |> Map.get(:body)
     user
       |> normalize_user()
   end
 
-  def friends! do
+  def friends do
     {:ok, channels} = Rest.get("/users/@me/channels")
       |> Map.get(:body)
     channels
       |> Enum.map(&normalize_dm(&1))
   end
 
-  def servers! do
+  def servers do
     Rest.get("/users/@me/guilds") |> Map.get(:body)
   end
 
-  def channels! server do
+  def channels server do
     {:ok, channels} = Rest.get("/guilds/#{server.id}/channels")
       |> Map.get(:body)
     channels
       |> Enum.map(&normalize_channel(&1))
   end
 
-  def create_server! name, options \\ %{} do
+  def create_server name, options \\ %{} do
     options = Map.put(options, :name, name)
     Rest.post("/guilds", body: options)
       |> Map.get(:body)
   end
 
-  def update_server! id, options \\ %{} do
+  def update_server id, options \\ %{} do
     Rest.post("/guilds/#{id}", options)
       |> Map.get(:body)
   end

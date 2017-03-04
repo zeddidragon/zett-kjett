@@ -49,7 +49,7 @@ defmodule ZettKjett.Interfaces.IO do
 
   defp compare_friends friends, string do
     string = String.downcase string
-    Enum.sort_by friends, fn {{_, user}, _} ->
+    Enum.sort_by friends, fn {{user, _}, _} ->
       user.name
         |> String.downcase
         |> String.jaro_distance(string)
@@ -98,6 +98,12 @@ defmodule ZettKjett.Interfaces.IO do
     error "Usage: \"/tell <friend> [<message>]\""
   end
 
+  defp run_command "history", _ do
+    for {user, message} <- ZettKjett.history do
+      IO.puts "<#{user.name}> #{message.message}"
+    end
+  end
+
   defp run_command "nick", [] do
     error "Usage: \"/nick <new name>\""
   end
@@ -125,7 +131,7 @@ defmodule ZettKjett.Interfaces.IO do
 
   def friends do
     system "FRIENDS"
-    for {{_, user}, _} <- ZettKjett.friends do
+    for {{user, _}, _} <- ZettKjett.friends do
       system " " <> user.name
     end
   end

@@ -16,11 +16,25 @@ defmodule ZettKjett.Protocol do
     name
   end
 
-  defp message_loop protocol, module, listener, cache do
-    receive do
-      message -> send listener, {message, module}
+  defp message_loop module, protocol, listener, cache do
+    receive do msg ->
+      case msg do
+        {:message, chat, user, message} ->
+          add_message protocol, chat, {user, message}
+        _ ->
+          if Mix.env == :dev do
+            IO.message "Unknown protocol message for #{protocol}"
+            IO.inspect(msg)
+          end
+      end
+      send listener, {msg, module}
     end
-    message_loop protocol, module, listener, cache
+    message_loop module, protocol, listener, cache
+  end
+
+  defp add_message protocol, chat, entry do
+    messages = history protocol, chat
+    cache protocol, :history, [entry | messages]
   end
 
   defp get_protocol name do
@@ -61,5 +75,12 @@ defmodule ZettKjett.Protocol do
   def tell protocol, chat, message do
     {module, _, _} = get_protocol protocol
     module.tell chat, message
+  end
+
+  def history protocol, chat do
+    cached protocol, :history, &history!(&1, chat)
+  end
+  defp history! module, chat do
+    module.history chat
   end
 end

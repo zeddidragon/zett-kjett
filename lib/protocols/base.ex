@@ -3,7 +3,7 @@ defmodule ZettKjett.Protocols.Base do
   @callback start_link(pid) :: any
   @callback me() :: User
   @callback nick(String.t) :: any
-  @callback friends() :: [{Chat, User}]
-  @callback history(Chat) :: [Message]
+  @callback friends() :: [{User, Chat}]
+  @callback history(Chat) :: [{User, Message}]
   @callback tell(Chat, String) :: any
 end

@@ -34,7 +34,7 @@ defmodule ZettKjett.Protocols.Echo do
   end
 
   def friends do
-    [{chat(), me()}]
+    [{me(), chat()}]
   end
 
   def tell _, message do
@@ -47,5 +47,9 @@ defmodule ZettKjett.Protocols.Echo do
     }
     send __MODULE__, {:message, message}
     message
+  end
+
+  def history _ do
+    []
   end
 end
