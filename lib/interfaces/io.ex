@@ -99,7 +99,7 @@ defmodule ZettKjett.Interfaces.IO do
   end
 
   defp run_command "history", _ do
-    for {user, message} <- ZettKjett.history do
+    for {user, message} <- Enum.reverse ZettKjett.history do
       IO.puts "<#{user.name}> #{message.message}"
     end
   end
