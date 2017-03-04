@@ -47,34 +47,37 @@ defmodule ZettKjett.Protocols.Discord do
   end
 
   def me do
-    {:ok, user} = Rest.get("/users/@me")
+    Rest.get("/users/@me")
       |> Map.get(:body)
-    user
       |> normalize_user()
   end
 
   def friends do
-    {:ok, channels} = Rest.get("/users/@me/channels")
+    Rest.get("/users/@me/channels")
       |> Map.get(:body)
-    channels
       |> Enum.map(&normalize_dm/1)
   end
 
   def history chat do
-    {:ok, messages} = Rest.get("/channels/#{chat.id}/messages")
+    Rest.get("/channels/#{chat.id}/messages")
       |> Map.get(:body)
-    messages
       |> Enum.map(&normalize_message/1)
   end
 
+  def tell chat, message do
+    body = %{ content: message }
+    Rest.post("/channels/#{chat.id}/messages", body: body)
+      |> Map.get(:body)
+  end
+
   def servers do
-    Rest.get("/users/@me/guilds") |> Map.get(:body)
+    Rest.get("/users/@me/guilds")
+      |> Map.get(:body)
   end
 
   def channels server do
-    {:ok, channels} = Rest.get("/guilds/#{server.id}/channels")
+    Rest.get("/guilds/#{server.id}/channels")
       |> Map.get(:body)
-    channels
       |> Enum.map(&normalize_channel/1)
   end
 
@@ -119,18 +122,19 @@ defmodule ZettKjett.Protocols.Discord.Rest do
   end
 
   def process_request_body body do
-    # Discord would give me a 400 Bad Request for all GET requests
-    # unless I put this check in.
     if body == "" do
       body
     else
-      JSON.encode body
+      case JSON.encode body do
+        {:ok, json} -> json
+        _ -> body
+      end
     end
   end
 
   def process_response_body(body) do
     body
       |> IO.iodata_to_binary
-      |> JSON.decode
+      |> JSON.decode!
   end
 end
