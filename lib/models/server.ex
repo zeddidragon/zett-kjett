@@ -1,8 +1,8 @@
 defmodule ZettKjett.Models.Server do
-  @enforce_keys [:id]
+  @enforce_keys [:id, :name]
   defstruct [
     id: nil,
-    name: "<unnamed server>",
+    name: nil,
     owner: nil
   ]
 end

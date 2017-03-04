@@ -27,10 +27,7 @@ defmodule ZettKjett.Protocols.Echo do
   end
 
   defp chat do
-    %Chat{
-      id: 1,
-      user_id: :me
-    }
+    %Chat{ id: 1 }
   end
 
   def friends do
@@ -42,7 +39,6 @@ defmodule ZettKjett.Protocols.Echo do
     message = %Message{
       id: time,
       sent_at: time,
-      user_id: :me,
       message: message
     }
     send __MODULE__, {:message, message}

@@ -1,8 +1,7 @@
 defmodule ZettKjett.Models.Message do
-  @enforce_keys [:id, :user_id, :message, :sent_at]
+  @enforce_keys [:id, :message, :sent_at]
   defstruct [
     id: nil,
-    user_id: nil,
     sent_at: nil,
     message: nil,
     edited_at: nil

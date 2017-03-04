@@ -3,7 +3,7 @@ defmodule ZettKjett.Protocols.Discord do
   @behaviour ZettKjett.Protocols.Servers
   alias ZettKjett.Models.{Server, Channel, Chat, User, Message}
 
-  def start_link! listener do
+  def start_link listener do
     {:ok, pid} = Task.start_link fn -> loop(listener) end
     Process.register pid, __MODULE__
     {:ok, pid}
@@ -17,12 +17,29 @@ defmodule ZettKjett.Protocols.Discord do
   end
 
   defp normalize_user obj do
-    %User{id: obj["id"], name: obj["username"]}
+    %User{
+      id: obj["id"],
+      name: obj["username"]
+    }
   end
 
   defp normalize_dm obj do
     user = normalize_user(obj["recipient"])
-    {user, %Chat{id: obj["id"], user_id: user.id }}
+    chat = %Chat{
+      id: obj["id"]
+    }
+    {user, chat}
+  end
+
+  def normalize_message obj do
+    user = normalize_user(obj["author"])
+    message = %Message{
+      id: obj["id"],
+      sent_at: obj["timestamp"],
+      edited_at: obj["edited_timestamp"],
+      message: obj["content"]
+    }
+    {user, message}
   end
 
   defp normalize_channel obj do
@@ -40,7 +57,14 @@ defmodule ZettKjett.Protocols.Discord do
     {:ok, channels} = Rest.get("/users/@me/channels")
       |> Map.get(:body)
     channels
-      |> Enum.map(&normalize_dm(&1))
+      |> Enum.map(&normalize_dm/1)
+  end
+
+  def history chat do
+    {:ok, messages} = Rest.get("/channels/#{chat.id}/messages")
+      |> Map.get(:body)
+    messages
+      |> Enum.map(&normalize_message/1)
   end
 
   def servers do
@@ -51,7 +75,7 @@ defmodule ZettKjett.Protocols.Discord do
     {:ok, channels} = Rest.get("/guilds/#{server.id}/channels")
       |> Map.get(:body)
     channels
-      |> Enum.map(&normalize_channel(&1))
+      |> Enum.map(&normalize_channel/1)
   end
 
   def create_server name, options \\ %{} do

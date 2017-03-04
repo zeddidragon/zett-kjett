@@ -93,7 +93,6 @@ defmodule ZettKjett do
       _ -> send @interface, {{:error, :no_chat_joined}, nil}
     end
   end
-
   def tell {{user, chat}, protocol}, string do
     Agent.update @state, &Map.merge(&1, %{chat: chat, protocol: protocol})
     send @interface, {{:join_chat, chat, user}, protocol}
@@ -103,9 +102,14 @@ defmodule ZettKjett do
   def history do
     Agent.get @state, fn
       %{protocol: protocol, chat: chat} ->
-        Protocol.history protocol, chat
-      _ -> send @interface, {{:error, :no_protocol_selected}, nil}
+        history protocol, chat
+      _ ->
+        send @interface, {{:error, :no_protocol_selected}, nil}
+        []
     end
+  end
+  def history protocol, chat do
+    Protocol.history protocol, chat
   end
 
   def channels do

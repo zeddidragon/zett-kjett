@@ -1,8 +1,8 @@
 defmodule ZettKjett.Models.User do
-  @enforce_keys [:id]
+  @enforce_keys [:id, :name]
   defstruct [
     id: nil,
-    name: "<unnamed schmuck>",
+    name: nil,
     color: nil
   ]
 end

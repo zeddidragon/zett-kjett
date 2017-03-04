@@ -11,7 +11,7 @@ defmodule ZettKjett.Protocol do
       Task.start_link fn ->
         message_loop(module, name, listener, cache)
       end
-    module.start_link loop
+    {:ok, _} = module.start_link loop
     Agent.update __MODULE__, &Map.put(&1, name, {module, loop, cache})
     name
   end
@@ -23,7 +23,7 @@ defmodule ZettKjett.Protocol do
           add_message protocol, chat, {user, message}
         _ ->
           if Mix.env == :dev do
-            IO.message "Unknown protocol message for #{protocol}"
+            IO.puts "Unknown protocol message for #{protocol}"
             IO.inspect(msg)
           end
       end
