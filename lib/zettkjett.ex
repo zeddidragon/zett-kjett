@@ -102,13 +102,13 @@ defmodule ZettKjett do
   def history do
     Agent.get @state, fn
       %{protocol: protocol, chat: chat} ->
-        history protocol, chat
+        Protocol.history protocol, chat
       _ ->
         send @interface, {{:error, :no_protocol_selected}, nil}
         []
     end
   end
-  def history protocol, chat do
+  def history {{_, chat}, protocol} do
     Protocol.history protocol, chat
   end
 

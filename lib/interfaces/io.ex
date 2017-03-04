@@ -43,8 +43,14 @@ defmodule ZettKjett.Interfaces.IO do
         |> String.split
       run_command String.downcase(cmd), args
     else
-      message input
+      tell input
     end
+  end
+
+  defp find_friend target do
+    ZettKjett.friends
+      |> compare_friends(target)
+      |> hd()
   end
 
   defp compare_friends friends, string do
@@ -92,16 +98,18 @@ defmodule ZettKjett.Interfaces.IO do
   end
 
   defp run_command "tell", [target | args] do
-    message target, Enum.join(args, " ")
+    tell target, Enum.join(args, " ")
   end
   defp run_command "tell", _ do
     error "Usage: \"/tell <friend> [<message>]\""
   end
 
+  defp run_command "history", [target | _] do
+    (friend = find_friend target)
+      && print_history(ZettKjett.history(friend))
+  end
   defp run_command "history", _ do
-    for {user, message} <- Enum.reverse ZettKjett.history do
-      IO.puts "<#{user.name}> #{message.message}"
-    end
+    print_history ZettKjett.history
   end
 
   defp run_command "nick", [] do
@@ -143,14 +151,18 @@ defmodule ZettKjett.Interfaces.IO do
     end
   end
 
-  defp message message do
+  defp tell message do
     ZettKjett.tell message
   end
 
-  def message target, message do
-    ZettKjett.friends
-      |> compare_friends(target)
-      |> hd()
-      |> tell_friend(message)
+  def tell target, message do
+    (friend = find_friend(target))
+      && tell_friend(friend, message)
+  end
+
+  defp print_history messages do
+    for {user, message} <- Enum.reverse messages do
+      IO.puts "<#{user.name}> #{message.message}"
+    end
   end
 end
