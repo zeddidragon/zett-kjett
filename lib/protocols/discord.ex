@@ -5,7 +5,7 @@ defmodule ZettKjett.Protocols.Discord do
 
   def start_link listener do
     {:ok, pid} = Task.start_link fn ->
-      socket = connect_websocket()
+      socket = connect_socket()
       loop(listener, socket)
     end
     Process.register pid, __MODULE__
@@ -13,8 +13,11 @@ defmodule ZettKjett.Protocols.Discord do
   end
 
   @path "./tmp/discord-ws"
-  defp connect_websocket 3 do: raise "Failed 3 times to connect to websocket"
-  defp connect_websocket attempts // 0 do
+  defp connect_socket attempts \\ 0
+  defp connect_socket(attempts) when attempts > 2 do
+    raise "Failed 3 times to connect to websocket"
+  end
+  defp connect_socket attempts do
     ws_url =
       case File.read @path do
         {:ok, url} -> url
@@ -28,21 +31,11 @@ defmodule ZettKjett.Protocols.Discord do
           File.close file
           url
       end
-    case Socket.Web.connect ws_url do
-      {:ok, socket} -> socket
-      _ ->
-        File.rm @path
-        connect_websocket attempts + 1
-    end
+    # TODO: Connect to socket after getting URL
   end
 
   defp loop listener, socket do
-    Socket.Web.recv! socket do
-      {:ping, _} ->
-        Socket.Web.send! socket, {:pong, ""}
-      message -> IO.inspect(message)
-    end
-    loop listener
+    # TODO
   end
 
   defp normalize_user obj do

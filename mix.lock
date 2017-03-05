@@ -28,4 +28,4 @@
   "ssl_verify_fun": {:hex, :ssl_verify_fun, "1.1.1", "28a4d65b7f59893bc2c7de786dec1e1555bd742d336043fe644ae956c3497fbe", [:make, :rebar], []},
   "temp": {:hex, :temp, "0.4.2", "0004b79d8ef11d200be68585f252bb6429d35d1dc163c2b25c54bcc810d9a87d", [:mix], []},
   "tomlex": {:hex, :tomlex, "0.0.5", "7431c9adcf3b9fdda92750649fadd84ab16c5a061c418709609b4ffef7a1981f", [:mix], []},
-  "websocket_client": {:hex, :websocket_client, "1.1.0", "c1ac9162a2286d3ca747417b1717090e762becba1f9f0bde359cb0318b066636", [:rebar3], []}}
+  "websocket_client": {:git, "https://github.com/jeremyong/websocket_client.git", "f6892c8b55004008ce2d52be7d98b156f3e34569", []}}

@@ -25,7 +25,7 @@ defmodule Zettkjett.Mixfile do
   end
 
   defp applications _ do
-    [:httpotion]
+    [:httpotion, :crypto, :ssl]
   end
 
   # Dependencies can be Hex packages:
@@ -41,7 +41,7 @@ defmodule Zettkjett.Mixfile do
     [ {:httpotion, "~> 3.0.2"},
       {:tomlex, ">= 0.0.0"},
       {:encurses, git: "https://github.com/zeddidragon/encurses.git"},
-      {:socket, "~> 0.3"},
+      {:websocket_client, git: "https://github.com/jeremyong/websocket_client.git"},
       {:json, "~> 1.0"} ]
   end
 end
