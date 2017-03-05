@@ -2,7 +2,6 @@ defmodule ZettKjett.Protocols.Echo do
   @behaviour ZettKjett.Protocols.Base
   alias ZettKjett.Models.{Chat, User, Message}
   alias ZettKjett.Utils.{Socket}
-  alias ZettKjett.{Utils}
 
   def start_link listener do
     {:ok, pid} = Task.start_link fn ->

@@ -1,4 +1,12 @@
 defmodule ZettKjett.Protocol do
+  @enforce_keys [:module, :protocol, :listener, :cache]
+  defstruct [
+    module: nil,
+    protocol: nil,
+    listener: nil,
+    cache: nil
+  ]
+
   def start_link do
     Agent.start_link fn -> %{} end, name: __MODULE__
   end
@@ -9,32 +17,25 @@ defmodule ZettKjett.Protocol do
       Agent.start_link fn -> %{} end
     {:ok, loop} =
       Task.start_link fn ->
-        message_loop(module, name, listener, cache)
+        message_loop %{
+          module: module,
+          protocol: name,
+          listener: listener,
+          cache: cache
+        }
       end
     {:ok, _} = module.start_link loop
     Agent.update __MODULE__, &Map.put(&1, name, {module, loop, cache})
     name
   end
 
-  defp message_loop module, protocol, listener, cache do
+  defp message_loop state do
     receive do msg ->
-      case msg do
-        {:message, chat, user, message} ->
-          add_message protocol, chat, {user, message}
-        _ ->
-          if Mix.env == :dev do
-            IO.puts "Unknown protocol message for #{protocol}"
-            IO.inspect(msg)
-          end
+      if handle_message(msg, state) do
+        send state.listener, {msg, state.protocol}
       end
-      send listener, {msg, module}
+      message_loop state
     end
-    message_loop module, protocol, listener, cache
-  end
-
-  defp add_message protocol, chat, entry do
-    messages = history protocol, chat
-    cache protocol, :history, [entry | messages]
   end
 
   defp get_protocol name do
@@ -82,5 +83,25 @@ defmodule ZettKjett.Protocol do
   end
   defp history! module, chat do
     module.history chat
+  end
+
+  def handle_message {:message, chat, user, entry}, state do
+    messages = history state.protocol, chat
+    cache state.protocol, :history, [{user, entry} | messages]
+    :ok
+  end
+
+  def handle_message {:friends, friends}, state do
+    cache state.protocol, :friends, friends
+    send state.listener, {:friends, friends}
+    :ok
+  end
+
+  def handle_message unknown, state do
+    if Mix.env == :dev do
+      IO.puts "Unknown protocol message for #{state.protocol}"
+      ZettKjett.Utils.inspect(unknown)
+    end
+    nil
   end
 end

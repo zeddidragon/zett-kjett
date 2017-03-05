@@ -14,16 +14,21 @@ defmodule ZettKjett.Utils.Socket do
   end
 
   def websocket_handle {:binary, data}, _conn_state, listener do
-    send listener, :erlang.binary_to_term(data)
+    packet =
+      data
+        |> IO.inspect(label: "Before decoding")
+        |> :erlang.binary_to_term
+        |> IO.inspect(label: "After decoding")
+    send listener, packet
     {:ok, listener}
   end
 
   # :websocket_client handles ping automatically
-  def websocket_handle {:ping, ""}, _conn_state, _listener do
+  def websocket_handle {:ping, ""}, _conn_state, listener do
     {:ok, listener}
   end
 
-  def websocket_handle packet, _conn_state, _listener do
+  def websocket_handle packet, _conn_state, listener do
     Utils.inspect packet, label: "Socket Packet"
     {:ok, listener}
   end
