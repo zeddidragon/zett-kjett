@@ -10,15 +10,12 @@ defmodule ZettKjett.Utils.Socket do
   end
 
   def cast socket_pid, data do
-    :websocket_client.cast socket_pid, {:binary, :erlang.term_to_binary(data)}
+    packet = data |> :erlang.term_to_binary
+    :websocket_client.cast socket_pid, {:binary, packet}
   end
 
   def websocket_handle {:binary, data}, _conn_state, listener do
-    packet =
-      data
-        |> IO.inspect(label: "Before decoding")
-        |> :erlang.binary_to_term
-        |> IO.inspect(label: "After decoding")
+    packet = data |> :erlang.binary_to_term
     send listener, packet
     {:ok, listener}
   end

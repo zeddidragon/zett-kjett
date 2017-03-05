@@ -9,7 +9,8 @@ defmodule ZettKjett.Utils.FileCache do
       _ ->
         data = cb.()
         File.mkdir_p! "./tmp/"
-        file = File.open path(key), [:write]
+        {:ok, file} = File.open path(key), [:write]
+        ZettKjett.Utils.inspect data, label: "Filecaching data"
         IO.binwrite file, data
         File.close file
         data

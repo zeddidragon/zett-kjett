@@ -1,23 +1,23 @@
 defmodule ZettKjett.Protocols.Discord do
-  alias ZettKjett.Protocols.Discord.Rest
-  @behaviour ZettKjett.Protocols.Servers
   alias ZettKjett.Models.{Server, Channel, Chat, User, Message}
+  @behaviour ZettKjett.Protocols.Servers
+  alias ZettKjett.Protocols.Discord.{Rest, WebSocket}
 
   def start_link listener do
-    ZettKjett.Protocols.Discord.Websocket.start_link listener
+    WebSocket.start_link listener
   end
 
   def normalize_user obj do
     %User{
-      id: obj["id"] || obj['id'],
-      name: obj["username"] || obj['username']
+      id: obj["id"] || obj[:id],
+      name: obj["username"] || obj[:username]
     }
   end
 
   def normalize_dm obj do
-    user = normalize_user(obj["recipient"] || obj['recipient'])
+    user = normalize_user(obj["recipient"] || obj[:recipient])
     chat = %Chat{
-      id: obj["id"] || obj['id']
+      id: obj["id"] || obj[:id]
     }
     {user, chat}
   end
@@ -25,24 +25,22 @@ defmodule ZettKjett.Protocols.Discord do
   def normalize_message obj do
     user = normalize_user(obj["author"])
     message = %Message{
-      id: obj["id"] || obj['id'],
-      sent_at: obj["timestamp"] || obj['timestamp'],
-      edited_at: obj["edited_timestamp"] || obj['edited_timestamp'],
-      content: obj["content"] || obj['content']
+      id: obj["id"] || obj[:id],
+      sent_at: obj["timestamp"] || obj[:sent_at],
+      edited_at: obj["edited_timestamp"] || obj[:edited_timestamp],
+      content: obj["content"] || obj[:content]
     }
     {user, message}
   end
 
   def normalize_channel obj do
     %Channel{
-      id: obj["id"] || obj['id']
+      id: obj["id"] || obj[:id]
     }
   end
 
   def me do
-    Rest.get("/users/@me")
-      |> Map.get(:body)
-      |> normalize_user()
+    nil
   end
 
   def friends do
@@ -133,10 +131,11 @@ defmodule ZettKjett.Protocols.Discord.Rest do
   end
 end
 
-defmodule ZettKjett.Protocols.Disccord.Websocket do
+defmodule ZettKjett.Protocols.Discord.WebSocket do
+  alias ZettKjett.Utils
   alias ZettKjett.Utils.{Socket, FileCache}
   alias ZettKjett.Protocols.Discord
-  alias ZettKjett.Protocols.Discord.{Heartbeat}
+  alias ZettKjett.Protocols.Discord.{Rest, Heartbeat}
 
   @enforce_keys [:listener, :socket]
   defstruct [
@@ -154,6 +153,8 @@ defmodule ZettKjett.Protocols.Disccord.Websocket do
     end
   end
 
+  @version 5
+  @encoding "etf"
   defp connect attempts \\ 0
   defp connect(attempts) when attempts > 2 do
     raise "Failed 3 times to connect to websocket"
@@ -164,7 +165,8 @@ defmodule ZettKjett.Protocols.Disccord.Websocket do
         |> Map.get(:body)
         |> Map.get("url")
     end
-    case Socket.connect ws_url do
+    ws_url = ws_url <> "?v=#{@version}&encoding=#{@encoding}"
+    case Socket.start_link ws_url do
       {:ok, pid} -> pid
       _ ->
         FileCache.invalidate! "discord-ws"
@@ -173,40 +175,38 @@ defmodule ZettKjett.Protocols.Disccord.Websocket do
   end
 
   defp loop state do
-    state = receive do
-      packet ->
-        opcode = packet['op']
-        data = packet['d']
-        if opcode == 0 do
-          send state.heartbeat, {:seq, packet['seq']}
-          handle_event packet['t'], data, state
-        else
-          handle_opcode opcode, data, state
-        end
+    state = receive do packet ->
+      Utils.inspect packet, label: "Discord WS packet"
+      opcode = packet[:op]
+      data = packet[:d]
+      if opcode == 0 do
+        send state.heartbeat, {:seq, packet[:seq]}
+        handle_event packet[:t], data, state
+      else
+        handle_opcode opcode, data, state
+      end
     end
     loop state
   end
 
   # Hello
   def handle_opcode 10, data, state do
-    Socket.call state.socket, %{
-      'op' => 2,  # Identify
-      'd' => %{
-        'token' => String.to_charlist(Rest.token),
-        'large_treshold' => 250,
-        'compress' => false,
-        'shard' => [0, 1],
-        'properties' => %{
-          '$os' => Atom.to_charlist(elem(:os.type, 1)),
-          '$browser' => 'zett_kjett',
-          '$device' => 'zett_kjett',
-          '$referer' => '',
-          '$referring_domain' => ''
+    Socket.cast state.socket, %{
+      "op" => 2,  # Identify
+      "d" => %{
+        "token" => Rest.token,
+        "large_treshold" => 250,
+        "compress" => false,
+        "properties" => %{
+          "$os" => to_string(elem(:os.type, 1)),
+          "$browser" => "zett_kjett",
+          "$device" => "zett_kjett"
         }
       }
     }
+    {:ok, pid} = Heartbeat.start_link(state.socket, data[:heartbeat_interval])
     %{state |
-      heartbeat: Heartbeat.start_link(state.socket, data['heartbeat_interval'])
+      heartbeat: pid
     }
   end
 
@@ -221,8 +221,10 @@ defmodule ZettKjett.Protocols.Disccord.Websocket do
     state
   end
 
-  def handle_event 'READY', data, state do
-    friends = Enum.map(data['private_channels'], &Discord.normalize_dm/1)
+  def handle_event "READY", data, state do
+    me = data[:user] |> Discord.normalize_user()
+    send state.listener, {:me, me}
+    friends = Enum.map(data[:private_channels], &Discord.normalize_dm/1)
     send state.listener, {:friends, friends}
     state
   end
@@ -246,8 +248,8 @@ defmodule ZettKjett.Protocols.Discord.Heartbeat do
   ]
 
   def start_link socket, interval do 
-    Task.start_link do
-      loop %__MODULE__{
+    Task.start_link fn ->
+      beat %__MODULE__{
         socket: socket,
         interval: interval,
         last_beat: :os.system_time
@@ -255,8 +257,17 @@ defmodule ZettKjett.Protocols.Discord.Heartbeat do
     end
   end
 
+  def beat state do
+    Socket.cast state.socket, %{
+      "op" => 1,  # Heartbeat
+      "d" => state.seq
+    }
+    loop %{state | last_beat: :os.system_time}
+  end
+
   def loop state do
-    remaining = (:os.system_time - state.last_beat) / 1_000_000
+    remaining = state.interval - trunc((:os.system_time - state.last_beat) / 1_000_000)
+    ZettKjett.Utils.inspect remaining, label: "Next heartbeat in"
     receive do
       {:ack} ->
         loop %{state | acknowledged: true}
@@ -265,12 +276,9 @@ defmodule ZettKjett.Protocols.Discord.Heartbeat do
     after
       remaining ->
         if state.acknowledged do
-          Socket.cast state.socket, %{
-            'op' => 1,  # Heartbeat
-            'd' => state.seq
-          }
-          loop %{state | last_beat: :os.system_time}
+          beat(state)
         else
+          IO.inspect state
           raise "No heartbeat ack received"
         end
     end

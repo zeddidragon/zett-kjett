@@ -85,15 +85,19 @@ defmodule ZettKjett.Protocol do
     module.history chat
   end
 
-  def handle_message {:message, chat, user, entry}, state do
-    messages = history state.protocol, chat
-    cache state.protocol, :history, [{user, entry} | messages]
+  def handle_message {:me, user}, state do
+    cache state.protocol, :me, user
     :ok
   end
 
   def handle_message {:friends, friends}, state do
     cache state.protocol, :friends, friends
-    send state.listener, {:friends, friends}
+    :ok
+  end
+
+  def handle_message {:message, chat, user, entry}, state do
+    messages = history state.protocol, chat
+    cache state.protocol, :history, [{user, entry} | messages]
     :ok
   end
 
