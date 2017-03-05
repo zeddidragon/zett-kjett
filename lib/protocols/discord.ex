@@ -1,5 +1,5 @@
 defmodule ZettKjett.Protocols.Discord do
-  alias ZettKjett.Models.{Server, Channel, Chat, User, Message}
+  alias ZettKjett.Models.{Server, Channel, User, Message}
   @behaviour ZettKjett.Protocols.Servers
   alias ZettKjett.Protocols.Discord.{Rest, WebSocket}
 
@@ -16,26 +16,29 @@ defmodule ZettKjett.Protocols.Discord do
 
   def normalize_dm obj do
     user = normalize_user(obj["recipient"] || obj[:recipient])
-    chat = %Chat{
+    channel = %Channel{
       id: obj["id"] || obj[:id]
     }
-    {user, chat}
+    {user, channel}
   end
 
   def normalize_message obj do
     user = normalize_user(obj["author"])
     message = %Message{
       id: obj["id"] || obj[:id],
+      user_id: user.id,
+      channel_id: obj["channel_id"] || obj[:channel_id],
+      content: obj["content"] || obj[:content],
       sent_at: obj["timestamp"] || obj[:sent_at],
-      edited_at: obj["edited_timestamp"] || obj[:edited_timestamp],
-      content: obj["content"] || obj[:content]
+      edited_at: obj["edited_timestamp"] || obj[:edited_timestamp]
     }
     {user, message}
   end
 
   def normalize_channel obj do
     %Channel{
-      id: obj["id"] || obj[:id]
+      id: obj["id"] || obj[:id],
+      server_id: obj["guild_id"] || obj[:guild_id]
     }
   end
 
@@ -60,14 +63,11 @@ defmodule ZettKjett.Protocols.Discord do
   end
 
   def servers do
-    Rest.get("/users/@me/guilds")
-      |> Map.get(:body)
+    []
   end
 
   def channels server do
-    Rest.get("/guilds/#{server.id}/channels")
-      |> Map.get(:body)
-      |> Enum.map(&normalize_channel/1)
+    []
   end
 
   def create_server name, options \\ %{} do
@@ -176,7 +176,6 @@ defmodule ZettKjett.Protocols.Discord.WebSocket do
 
   defp loop state do
     state = receive do packet ->
-      Utils.inspect packet, label: "Discord WS packet"
       opcode = packet[:op]
       data = packet[:d]
       if opcode == 0 do
@@ -221,7 +220,7 @@ defmodule ZettKjett.Protocols.Discord.WebSocket do
     state
   end
 
-  def handle_event "READY", data, state do
+  def handle_event :READY, data, state do
     me = data[:user] |> Discord.normalize_user()
     send state.listener, {:me, me}
     friends = Enum.map(data[:private_channels], &Discord.normalize_dm/1)
@@ -229,8 +228,30 @@ defmodule ZettKjett.Protocols.Discord.WebSocket do
     state
   end
 
+  def handle_event :MESSAGE_CREATE, data, state do
+    {user, message} = Discord.normalize_message(data)
+    send state.listener, {:message, user, message}
+    state
+  end
+
+  def handle_event :MESSAGE_ACK, data, state do
+    # TODO: Find out if I need to do anything about this?
+    state
+  end
+
+  def handle_event :TYPING_START, data, state do
+    # TODO
+    state
+  end
+
+  def handle_event :PRESENCE_UPDATE, data, state do
+    # TODO
+    state
+  end
+
   def handle_event type, data, state do
     Utils.inspect data, label: "Unhandled event #{type}"
+    Utils.inspect type
     state
   end
 end
@@ -267,7 +288,6 @@ defmodule ZettKjett.Protocols.Discord.Heartbeat do
 
   def loop state do
     remaining = state.interval - trunc((:os.system_time - state.last_beat) / 1_000_000)
-    ZettKjett.Utils.inspect remaining, label: "Next heartbeat in"
     receive do
       {:ack} ->
         loop %{state | acknowledged: true}

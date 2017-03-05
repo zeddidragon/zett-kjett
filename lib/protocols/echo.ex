@@ -1,6 +1,6 @@
 defmodule ZettKjett.Protocols.Echo do
   @behaviour ZettKjett.Protocols.Base
-  alias ZettKjett.Models.{Chat, User, Message}
+  alias ZettKjett.Models.{Channel, User, Message}
   alias ZettKjett.Utils.{Socket}
 
   def start_link listener do
@@ -31,6 +31,8 @@ defmodule ZettKjett.Protocols.Echo do
       data ->
         message = %Message{
           id: data[:id],
+          user_id: :me,
+          channel_id: 1,
           sent_at: data[:sent_at],
           content: to_string(data[:content])
         }
@@ -48,7 +50,7 @@ defmodule ZettKjett.Protocols.Echo do
   end
 
   defp chat do
-    %Chat{ id: 1 }
+    %Channel{ id: 1 }
   end
 
   def friends do

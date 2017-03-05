@@ -21,6 +21,10 @@ defmodule ZettKjett.Interfaces.IO do
         IO.puts "\r <#{user.name}> " <> message.content
       {{:nick, user}, _} ->
         system "Nick changed to " <> user.name
+      {{:me, _}, _} ->
+        :ok # Nothing
+      {{:friends, _}, protocol} ->
+        system "Friend list received from " <> protocol_name(protocol)
       message ->
         message |> inspect |> system
     end
