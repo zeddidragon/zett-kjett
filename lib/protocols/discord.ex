@@ -59,7 +59,7 @@ defmodule ZettKjett.Protocols.Discord do
       id: obj["id"],
       sent_at: obj["timestamp"],
       edited_at: obj["edited_timestamp"],
-      message: obj["content"]
+      content: obj["content"]
     }
     {user, message}
   end

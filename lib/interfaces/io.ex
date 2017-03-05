@@ -18,7 +18,7 @@ defmodule ZettKjett.Interfaces.IO do
       {{:join_chat, _, user}, _} ->
         system "Now talking with " <> user.name
       {{:message, _, user, message}, _} ->
-        IO.puts "\r <#{user.name}> " <> message.message
+        IO.puts "\r <#{user.name}> " <> message.content
       {{:nick, user}, _} ->
         system "Nick changed to " <> user.name
       message ->
@@ -162,7 +162,7 @@ defmodule ZettKjett.Interfaces.IO do
 
   defp print_history messages do
     for {user, message} <- Enum.reverse messages do
-      IO.puts "<#{user.name}> #{message.message}"
+      IO.puts "<#{user.name}> #{message.content}"
     end
   end
 end

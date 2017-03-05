@@ -18,7 +18,7 @@ defmodule ZettKjett.Protocols.EchoTest do
 
   test "sending/receiving of messages" do
     Echo.tell hd(Echo.friends), "Hello"
-    assert_receive {:message, %Chat{}, %User{}, %Message{message: "Hello"}}
+    assert_receive {:message, %Chat{}, %User{}, %Message{content: "Hello"}}
   end
 end
 

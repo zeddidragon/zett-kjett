@@ -26,7 +26,7 @@ defmodule ZettKjett do
     receive do
       message ->
         IO.puts "State loop message"
-        message |> inspect |> IO.puts
+        message |> ZettKjett.Utils.inspect
     end
   end
 
