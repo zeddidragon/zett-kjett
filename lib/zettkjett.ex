@@ -40,9 +40,10 @@ defmodule ZettKjett do
   end
 
   def interface do
-    interface = Config.get[:Interfaces] || %{}
+    interface = (Config.get[:Interfaces] || %{})
       |> Enum.find(fn {interface, config} -> config[:enabled] end)
-    {:ok, pid} = Module.concat(ZettKjett, Interfaces, interface).start_link
+      |> elem(0)
+    {:ok, pid} = Module.concat([ZettKjett, Interfaces, interface]).start_link
     Process.register pid, @interface
   end
 
