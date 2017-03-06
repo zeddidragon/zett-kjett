@@ -13,7 +13,6 @@ defmodule ZettKjett.Interfaces.Curses do
   @standout 65536
  
   @curs_invisible 0
-  @curs_normal 1
 
   def start_link do
     initscr()
@@ -26,7 +25,7 @@ defmodule ZettKjett.Interfaces.Curses do
     timeout win, 120000
     noecho()
     cbreak()
-    curs_set @curs_normal
+    curs_set @curs_invisible
 
     
     highlight = 1

@@ -1,22 +1,16 @@
 defmodule ZettKjett.Protocols.Echo do
   @behaviour ZettKjett.Protocols.Base
   alias ZettKjett.Models.{Channel, User, Message}
-  alias ZettKjett.Utils.{Socket}
 
   def start_link listener do
     {:ok, pid} = Task.start_link fn ->
-      {:ok, socket} = connect_socket()
-      loop listener, socket
+      loop listener
     end
     Process.register pid, __MODULE__
     {:ok, pid}
   end
 
-  def connect_socket do
-    Socket.start_link "wss://echo.websocket.org", self()
-  end
-
-  defp loop listener, socket do
+  defp loop listener do
     receive do
       {:send_message, content} ->
         time = :os.system_time
@@ -25,7 +19,7 @@ defmodule ZettKjett.Protocols.Echo do
           sent_at: time,
           content: String.to_charlist(content)
         }
-        Socket.cast socket, data
+        send self(), data
       {:nick, user} ->
         send listener, {:nick, user}
       data ->
@@ -38,7 +32,7 @@ defmodule ZettKjett.Protocols.Echo do
         }
         send listener, {:message, chat(), me(), message}
     end
-    loop listener, socket
+    loop listener
   end
 
   def me do
@@ -50,11 +44,15 @@ defmodule ZettKjett.Protocols.Echo do
   end
 
   defp chat do
-    %Channel{ id: 1 }
+    %Channel{id: 1}
   end
 
   def friends do
-    [{me(), chat()}]
+    [me()]
+  end
+
+  def chats do
+    [{chat(), [me()]}]
   end
 
   def tell _, content do
