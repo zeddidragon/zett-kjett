@@ -25,6 +25,7 @@ defmodule ZettKjett do
   def state_loop do
     receive do
       message ->
+        :encurses.endwin()
         IO.puts "State loop message"
         message |> ZettKjett.Utils.inspect
     end
