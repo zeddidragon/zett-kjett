@@ -3,6 +3,7 @@ defmodule ZettKjett.Models.User do
   defstruct [
     id: nil,
     name: nil,
-    color: nil
+    color: nil,
+    status: nil
   ]
 end
