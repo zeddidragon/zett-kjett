@@ -15,7 +15,10 @@ defmodule ZettKjett.Interfaces.Curses do
   def start_link do
     Task.start_link fn ->
       init()
-      state = %__MODULE__{main: self()}
+      state = %__MODULE__{
+        main: self(),
+        selected: hd(ZettKjett.protocols)
+      }
       {:ok, tree} = Tree.start_link state
       state = %{state | tree: tree}
       send tree, {:state, state}
@@ -81,17 +84,16 @@ defmodule ZettKjett.Interfaces.Curses.Format do
   @white   7
 
   @text 0
-  @protocol 1
-  @channel  2
-  @friend   3
+  @protocol 2
+  @channel  4
+  @friend   6
 
   @normal     0
-  @bold       bsl(1, 8 + 13)
-  @underline  bsl(1, 8 + 9)
-  @reverse    bsl(1, 8 + 10)
-  @blink      bsl(1, 8 + 11)
+  @bold       1 <<< (8 + 13)
+  @underline  1 <<< (8 + 9)
+  @reverse    1 <<< (8 + 10)
+  @blink      1 <<< (8 + 11)
 
-  @standout 65536
   @curs_invisible 0
 
   def init do
@@ -99,44 +101,36 @@ defmodule ZettKjett.Interfaces.Curses.Format do
     init_pair @protocol, @green,   @black
     init_pair @channel,  @yellow,  @black
     init_pair @friend,   @magenta, @black
+    init_pair @protocol + 1, @black, @green
+    init_pair @channel + 1,  @black, @yellow
+    init_pair @friend + 1,   @black, @magenta
     curs_set @curs_invisible
   end
 
-  def text, do: @text 
-  def protocol, do: @protocol 
-  def channel, do: @channel 
-  def friend, do: @friend 
-
-  defp get_color c do
-    case c do
-      :test -> @text
+  defp get_color c, opts \\ [] do
+    ret = case c do
+      :text -> @text
       :protocol -> @protocol
       :channel -> @channel
       :friend -> @friend
       _ -> c
     end
-  end
-
-  def color c do
-    attron bsl(get_color(c), 8)
-  end
-  def color win, c do
-    attron win, bsl(get_color(c), 8)
-  end
-
-  def standout on do
-    if on
-      do attron @standout
-      else attroff @standout
+    if opts[:highlight] do ret + 1
+    else ret
     end
   end
 
-  def standout win, on do
-    if on
-      do attron win, @standout
-      else attroff win, @standout
-    end
+  def color(c) do
+    color(c, [])
   end
+  def color(c, opts) when is_list(opts) do
+    color = get_color(c, opts)
+    attron(get_color(c) <<< 8)
+  end
+  def color(win, c, opts \\ []) when is_atom(c) do
+    attron(win, get_color(c, opts) <<< 8)
+  end
+
 end
 
 defmodule ZettKjett.Interfaces.Curses.Tree do
@@ -150,7 +144,6 @@ defmodule ZettKjett.Interfaces.Curses.Tree do
     box win, 0, 0
     keypad win, true
     timeout win, 120000
-    refresh win
 
     redraw win, state
     Task.start_link fn ->
@@ -193,7 +186,7 @@ defmodule ZettKjett.Interfaces.Curses.Tree do
 
   def label type, item do
     case type do
-      :protocol -> to_string item
+      :protocol -> "> #{item}/"
       _ -> item.name
     end
   end
@@ -203,10 +196,11 @@ defmodule ZettKjett.Interfaces.Curses.Tree do
     refresh win
   end
   defp print_items [{item, type, indent} | items], win, state, index do
-    if state.selected == item, do: Format.standout win
-    Format.color win, type
-    mvwaddstr win, indent + 1, index + 1, to_charlist(label(type, item))
-    if state.selected == item, do: Format.standout win, false
+    Format.color win, type, highlight: item == state.selected
+    str = label(type, item)
+      |> String.pad_trailing(14)
+      |> to_charlist
+    mvwaddstr win, indent + 1, index + 1, str
 
     print_items items, win, state, index + 1
   end
