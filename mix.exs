@@ -40,8 +40,7 @@ defmodule Zettkjett.Mixfile do
   defp deps do
     [ {:httpotion, "~> 3.0.2"},
       {:tomlex, ">= 0.0.0"},
-      {:encurses, git: "https://github.com/zeddidragon/encurses.git"},
-      {:websocket_client, git: "https://@github.com/zeddidragon/websocket_client.git"},
+      {:websocket_client, git: "https://github.com/jeremyong/websocket_client.git"},
       {:json, "~> 1.0"} ]
   end
 end

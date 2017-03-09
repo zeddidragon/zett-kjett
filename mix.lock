@@ -1,7 +1,6 @@
 %{"earmark": {:hex, :earmark, "1.1.1", "433136b7f2e99cde88b745b3a0cfc3fbc81fe58b918a09b40fce7f00db4d8187", [:mix], []},
-  "encurses": {:git, "https://github.com/zeddidragon/encurses.git", "53cdde27d8877e9bf772d75d3ea4f74490f7cf7a", []},
   "httpotion": {:hex, :httpotion, "3.0.2", "525b9bfeb592c914a61a8ee31fdde3871e1861dfe805f8ee5f711f9f11a93483", [:mix], [{:ibrowse, "~> 4.2", [hex: :ibrowse, optional: false]}]},
   "ibrowse": {:hex, :ibrowse, "4.4.0", "2d923325efe0d2cb09b9c6a047b2835a5eda69d8a47ed6ff8bc03628b764e991", [:rebar3], []},
   "json": {:hex, :json, "1.0.0", "4824dadb01e14395f65e9d18da294d534326d7eed77996f3c22f74a9870179eb", [:mix], [{:earmark, ">= 0.0.0", [hex: :earmark, optional: false]}]},
   "tomlex": {:hex, :tomlex, "0.0.5", "7431c9adcf3b9fdda92750649fadd84ab16c5a061c418709609b4ffef7a1981f", [:mix], []},
-  "websocket_client": {:git, "https://@github.com/zeddidragon/websocket_client.git", "f6892c8b55004008ce2d52be7d98b156f3e34569", []}}
+  "websocket_client": {:git, "https://github.com/jeremyong/websocket_client.git", "9a6f65d05ebf2725d62fb19262b21f1805a59fbf", []}}

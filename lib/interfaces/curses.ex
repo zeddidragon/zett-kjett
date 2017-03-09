@@ -17,7 +17,7 @@ defmodule ZettKjett.Interfaces.Curses do
       init()
       state = %__MODULE__{
         main: self(),
-        selected: hd(ZettKjett.protocols)
+        selected: {hd(ZettKjett.protocols), :protocol}
       }
       {:ok, tree} = Tree.start_link state
       state = %{state | tree: tree}
@@ -62,11 +62,20 @@ defmodule ZettKjett.Interfaces.Curses do
 
   def process_input ?q, state do
     send state.tree, {:quit}
+    endwin()
     raise "quit"
+  end
+
+  @enter 13
+  def process_input @enter, state do
+    select state.selected
   end
 
   def process_input _, _ do
     :ok
+  end
+
+  def select {} do 
   end
 end
 
@@ -180,14 +189,21 @@ defmodule ZettKjett.Interfaces.Curses.Tree do
   end
 
   defp redraw win, state do
-    items = for protocol <- ZettKjett.protocols, do: {protocol, :protocol, 0}
+    items = for protocol <- ZettKjett.protocols, do: {protocol, :protocol}
     print_items items, win, state
   end
 
-  def label type, item do
+  def label {item, type} do
     case type do
-      :protocol -> "> #{item}/"
+      :protocol -> to_string item
       _ -> item.name
+    end
+  end
+
+  def indent {item, type} do
+    case type do
+      :protocol -> 0
+      _ -> 1
     end
   end
 
@@ -195,12 +211,14 @@ defmodule ZettKjett.Interfaces.Curses.Tree do
   defp print_items [], win, _, _ do
     refresh win
   end
-  defp print_items [{item, type, indent} | items], win, state, index do
-    Format.color win, type, highlight: item == state.selected
-    str = label(type, item)
+  defp print_items [{item, type} | items], win, state, index do
+    Format.color win, type, highlight: {item, type} == state.selected
+    str = {item, type}
+      |> label
       |> String.pad_trailing(14)
       |> to_charlist
-    mvwaddstr win, indent + 1, index + 1, str
+    mvwaddwch win, 1, index + 1, 0x2265
+    mvwaddstr win, indent({item, type}) + 2, index + 1, str
 
     print_items items, win, state, index + 1
   end
