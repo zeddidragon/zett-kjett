@@ -223,7 +223,9 @@ defmodule ZettKjett.Protocols.Discord.WebSocket do
   def handle_event :READY, data, state do
     me = data[:user] |> Discord.normalize_user()
     send state.listener, {:me, me}
-    friends = Enum.map(data[:private_channels], &Discord.normalize_dm/1)
+    friends = data[:relationships]
+      |> Enum.map(&Map.get(&1, "user"))
+      |> Enum.map(&Discord.normalize_user/1)
     send state.listener, {:friends, friends}
     state
   end

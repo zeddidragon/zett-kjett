@@ -155,25 +155,27 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> ZettKjett.switch()
   end
 
-  @friends_list_width 32
+  @friends_list_width 24
   defp zett_tree_item {entry, :protocol} do
-    zett_tree_item(ANSI.color(5, 1, 1) <> "<#{entry}>/")
+    zett_tree_item(ANSI.color(5, 1, 1), "<#{entry}>/")
   end
 
   defp zett_tree_item {{user, _}, :friend} do
-    zett_tree_item(ANSI.color(4, 4, 4) <> "  @#{user.name}")
+    zett_tree_item(ANSI.color(4, 4, 4), "  @#{user.name}")
   end
 
   defp zett_tree_item nil do
-    zett_tree_item(ANSI.color(1, 1, 1) <> "~")
+    zett_tree_item(ANSI.color(1, 1, 1), "~")
   end
 
   defp zett_tree_item {entry, type} do
     Utils.inspect type
     Utils.inspect entry
+    zett_tree_item ANSI.color(5, 0, 0), "==UNKNOWN=="
   end
 
-  defp zett_tree_item str do
+  defp zett_tree_item color, str do
+    color <>
     String.pad_trailing(str, @friends_list_width) <>
     ANSI.color(3, 3, 3) <>
     ANSI.color_background(1, 1, 1) <>
