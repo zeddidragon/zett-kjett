@@ -25,7 +25,6 @@ defmodule ZettKjett do
   def state_loop do
     receive do
       message ->
-        :encurses.endwin()
         IO.puts "State loop message"
         message |> ZettKjett.Utils.inspect
     end
@@ -97,7 +96,8 @@ defmodule ZettKjett do
       _ -> send @interface, {{:error, :no_chat_joined}, nil}
     end
   end
-  def tell {{user, chat}, protocol}, string do
+  def tell {user, protocol}, string do
+    chat = Protocol.chat protocol, user
     Agent.update @state, &Map.merge(&1, %{chat: chat, protocol: protocol})
     send @interface, {{:join_chat, chat, user}, protocol}
     Protocol.tell protocol, chat, string

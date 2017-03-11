@@ -1,4 +1,4 @@
-defmodule ZettKjett.Interfaces.IO do
+defmodule ZettKjett.Interfaces.ZettSH do
   def start_link do
     Task.start_link &input_loop/0
     Task.start_link &message_loop/0
@@ -59,7 +59,7 @@ defmodule ZettKjett.Interfaces.IO do
 
   defp compare_friends friends, string do
     string = String.downcase string
-    Enum.sort_by friends, fn {{user, _}, _} ->
+    Enum.sort_by friends, fn {user, _} ->
       user.name
         |> String.downcase
         |> String.jaro_distance(string)
@@ -143,7 +143,7 @@ defmodule ZettKjett.Interfaces.IO do
 
   def friends do
     system "FRIENDS"
-    for {{user, _}, _} <- ZettKjett.friends do
+    for {user, _} <- ZettKjett.friends do
       system " " <> user.name
     end
   end

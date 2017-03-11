@@ -30,7 +30,7 @@ defmodule ZettKjett.Protocols.Echo do
           sent_at: data[:sent_at],
           content: to_string(data[:content])
         }
-        send listener, {:message, chat(), me(), message}
+        send listener, {:message, me(), message}
     end
     loop listener
   end

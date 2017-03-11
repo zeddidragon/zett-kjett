@@ -6,8 +6,5 @@ token = "<token>"
 
 # Only one interface can be enabled at a time
 # The first enabled interface will be selected
-[Interfaces.IO]
-# enabled = true  # Uncomment to enable
-
-[Interfaces.Curses]
-enabled = true
+[Interfaces.Bash]
+enabled = true  # Uncomment to enable

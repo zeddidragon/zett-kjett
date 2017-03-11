@@ -91,6 +91,20 @@ defmodule ZettKjett.Protocol do
     module.friends
   end
 
+  def chat protocol, user do
+    case Enum.find chats(protocol), fn {_, users}-> users == [user] end do
+      {chat, [_]} -> chat
+      _ -> nil
+    end
+  end
+
+  def chats protocol do
+    cached protocol, :chats, &chats!/1
+  end
+  defp chats! module do
+    module.chats
+  end
+
   def tell protocol, chat, message do
     {module, _, _} = get_protocol protocol
     module.tell chat, message
