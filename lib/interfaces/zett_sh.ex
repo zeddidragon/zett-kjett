@@ -182,7 +182,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp zett_tree_item color, str do
     color <>
     String.pad_trailing(str, @friends_list_width) <>
-    ANSI.color(3, 3, 3) <>
+    ANSI.color(0, 0, 0) <>
     ANSI.color_background(1, 1, 1) <>
     "|\n" <>
     ANSI.default_color <>
@@ -218,6 +218,21 @@ defmodule ZettKjett.Interfaces.ZettSH do
       Ctrl.load_cursor
     ], "")
     IO.write list
+    state
+  end
+
+  def draw_statusbar state do
+    str =
+      Ctrl.save_cursor() <>
+      Ctrl.move(state.rows - 1, 0) <>
+      ANSI.color(1, 1, 1) <>
+      ANSI.color_background(3, 3, 3) <>
+      String.pad_trailing("ZettKjett", state.cols) <>
+      ANSI.default_color <>
+      ANSI.default_background <>
+      Ctrl.load_cursor
+    IO.write str
+    state
   end
 
   def redraw state do
@@ -229,6 +244,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       cols: Utils.parse_int(cols)
     }
     draw_tree state
+    draw_statusbar state
     state
   end
 
@@ -261,10 +277,22 @@ defmodule ZettKjett.Interfaces.ZettSH do
 end
 
 defmodule ZettKjett.Interfaces.ZettSH.Ctrl do
+  def save_cursor, do: "\e[s"
+  def load_cursor, do: "\e[u"
   def move row, col do
     "\e[#{row};#{col}H"
   end
   def home, do: move(0,0)
-  def save_cursor, do: "\e[s"
-  def load_cursor, do: "\e[u"
+  def up n do
+    "\e[#{n}A"
+  end
+  def down n do
+    "\e[#{n}B"
+  end
+  def left n do
+    "\e[#{n}C"
+  end
+  def right n do
+    "\e[#{n}D"
+  end
 end
