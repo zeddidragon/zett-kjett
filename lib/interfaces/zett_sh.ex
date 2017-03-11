@@ -1,4 +1,8 @@
 defmodule ZettKjett.Interfaces.ZettSH do
+  alias IO.ANSI
+  alias ZettKjett.Utils
+  alias ZettKjett.Interfaces.ZettSH.{Ctrl}
+
   def start_link do
     Task.start_link &input_loop/0
     Task.start_link &message_loop/0
@@ -98,7 +102,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp run_command "friends", _ do
-    friends()
+    redraw()
   end
 
   defp run_command "tell", [target | args] do
@@ -141,11 +145,57 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> ZettKjett.switch()
   end
 
-  def friends do
-    system "FRIENDS"
-    for {user, _} <- ZettKjett.friends do
-      system " " <> user.name
-    end
+  @friends_list_width 32
+  defp zett_tree_item str do
+    String.pad_trailing(str, @friends_list_width) <>
+    ANSI.color(3, 3, 3) <>
+    ANSI.color_background(1, 1, 1) <>
+    "|\n" <>
+    ANSI.default_color <>
+    ANSI.default_background
+  end
+
+  defp zett_tree_item entry, :protocol do
+    zett_tree_item(ANSI.color(5, 1, 1) <> "<#{entry}>/")
+  end
+
+  defp zett_tree_item {user, _}, :friend do
+    zett_tree_item(ANSI.color(4, 4, 4) <> "  @#{user.name}")
+  end
+
+  defp zett_tree_item entry, type do
+    Utils.inspect type
+    Utils.inspect entry
+  end
+
+  def zett_tree do
+    str = ZettKjett.protocols
+      |> Enum.map(fn protocol ->
+        zett_tree_item(protocol, :protocol) <>
+        friends(protocol)
+      end)
+      |> Enum.join("")
+    str <> ANSI.default_color() <> ANSI.default_background()
+  end
+
+  def draw_tree do
+    list = Enum.join([
+      Ctrl.save_cursor,
+      Ctrl.home,
+      zett_tree(),
+      Ctrl.load_cursor
+    ], "")
+    IO.write list
+  end
+
+  def redraw do
+    draw_tree()
+  end
+
+  def friends protocol do
+    ZettKjett.friends(protocol)
+      |> Enum.map(&zett_tree_item(&1, :friend))
+      |> Enum.join("")
   end
 
   def nick name do
@@ -169,4 +219,13 @@ defmodule ZettKjett.Interfaces.ZettSH do
       IO.puts "<#{user.name}> #{message.content}"
     end
   end
+end
+
+defmodule ZettKjett.Interfaces.ZettSH.Ctrl do
+  def move row, col do
+    "\e[#{row};#{col}H"
+  end
+  def home, do: move(0,0)
+  def save_cursor, do: "\e[s"
+  def load_cursor, do: "\e[u"
 end

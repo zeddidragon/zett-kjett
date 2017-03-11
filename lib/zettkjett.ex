@@ -85,6 +85,11 @@ defmodule ZettKjett do
     end
   end
 
+  def friends protocol do
+    for user <- Protocol.friends protocol do
+      {user, protocol}
+    end
+  end
   def friends do
     flat_map_protocols &Protocol.friends/1
   end
