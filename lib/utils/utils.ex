@@ -13,4 +13,21 @@ defmodule ZettKjett.Utils do
     ] ++ options
     IO.inspect subject, options
   end
+
+  def parse_int str do
+    str |> String.trim |> String.to_integer
+  end
+
+  def pad list, intended_length do 
+    n = length list
+    if n < intended_length do
+      Enum.concat list, fill (n + 1)..intended_length
+    else
+      list
+    end
+  end
+
+  def fill range, value \\ nil do
+    Enum.map range, fn v -> value end
+  end
 end

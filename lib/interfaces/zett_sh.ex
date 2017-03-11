@@ -1,7 +1,15 @@
+defmodule ZettKjett.Interfaces.ZettSH.State do
+  defstruct [
+    rows: 1,
+    cols: 1,
+    expanded: %{}
+  ]
+end
+
 defmodule ZettKjett.Interfaces.ZettSH do
   alias IO.ANSI
   alias ZettKjett.Utils
-  alias ZettKjett.Interfaces.ZettSH.{Ctrl}
+  alias ZettKjett.Interfaces.ZettSH.{Ctrl, State}
 
   def start_link do
     Task.start_link &input_loop/0
@@ -102,7 +110,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp run_command "friends", _ do
-    redraw()
+    {rows, 0} = System.cmd "tput", ["lines"]
+    {cols, 0} = System.cmd "tput", ["cols"]
+    redraw %State{rows: Utils.parse_int(rows), cols: Utils.parse_int(cols)}
   end
 
   defp run_command "tell", [target | args] do
@@ -146,6 +156,23 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   @friends_list_width 32
+  defp zett_tree_item {entry, :protocol} do
+    zett_tree_item(ANSI.color(5, 1, 1) <> "<#{entry}>/")
+  end
+
+  defp zett_tree_item {{user, _}, :friend} do
+    zett_tree_item(ANSI.color(4, 4, 4) <> "  @#{user.name}")
+  end
+
+  defp zett_tree_item nil do
+    zett_tree_item(ANSI.color(1, 1, 1) <> "~")
+  end
+
+  defp zett_tree_item {entry, type} do
+    Utils.inspect type
+    Utils.inspect entry
+  end
+
   defp zett_tree_item str do
     String.pad_trailing(str, @friends_list_width) <>
     ANSI.color(3, 3, 3) <>
@@ -155,47 +182,44 @@ defmodule ZettKjett.Interfaces.ZettSH do
     ANSI.default_background
   end
 
-  defp zett_tree_item entry, :protocol do
-    zett_tree_item(ANSI.color(5, 1, 1) <> "<#{entry}>/")
+  def zett_tree_list do
+    Enum.flat_map ZettKjett.protocols, fn protocol ->
+      [{protocol, :protocol} | friends(protocol)]
+    end
+  end
+  
+  def zett_tree_height state do
+    state.rows - 2  # Leave space for input line
   end
 
-  defp zett_tree_item {user, _}, :friend do
-    zett_tree_item(ANSI.color(4, 4, 4) <> "  @#{user.name}")
-  end
-
-  defp zett_tree_item entry, type do
-    Utils.inspect type
-    Utils.inspect entry
-  end
-
-  def zett_tree do
-    str = ZettKjett.protocols
-      |> Enum.map(fn protocol ->
-        zett_tree_item(protocol, :protocol) <>
-        friends(protocol)
-      end)
+  def zett_tree state do
+    intended_height = zett_tree_height state
+    str  = zett_tree_list()
+      |> Utils.pad(intended_height)
+      |> Enum.slice(0..intended_height)
+      |> IO.inspect
+      |> Enum.map(&zett_tree_item/1)
       |> Enum.join("")
     str <> ANSI.default_color() <> ANSI.default_background()
   end
 
-  def draw_tree do
+  def draw_tree state do
     list = Enum.join([
       Ctrl.save_cursor,
       Ctrl.home,
-      zett_tree(),
+      zett_tree(state),
       Ctrl.load_cursor
     ], "")
     IO.write list
   end
 
-  def redraw do
-    draw_tree()
+  def redraw state do
+    draw_tree state
   end
 
   def friends protocol do
     ZettKjett.friends(protocol)
-      |> Enum.map(&zett_tree_item(&1, :friend))
-      |> Enum.join("")
+      |> Enum.map(fn friend -> {friend, :friend} end)
   end
 
   def nick name do
