@@ -8,10 +8,13 @@ defmodule ZettKjett.Utils do
         atom: ANSI.light_magenta,
         tuple: ANSI.light_yellow,
         map: ANSI.light_yellow,
-        list: ANSI.light_green
+        list: ANSI.light_green,
       ]
     ] ++ options
+    IO.write "\e[s\e[0;25"
     IO.inspect subject, options
+    IO.write "\e[u"
+    subject
   end
 
   def parse_int str do

@@ -10,14 +10,17 @@ defmodule ZettKjett.Interfaces.ZettSH do
   alias IO.ANSI
   alias ZettKjett.Utils
   alias ZettKjett.Interfaces.ZettSH.{Ctrl, State}
+  @friends_list_width 24
+  @chat_x @friends_list_width
 
   def start_link do
     state = %State{}
-    Task.start_link do
-      redraw state
+    Task.start_link fn ->
+      state = redraw state
+      IO.write Ctrl.move(state.rows, 0)
       input_loop()
     end
-    Task.start_link do
+    Task.start_link fn ->
       message_loop state
     end
   end
@@ -160,7 +163,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> ZettKjett.switch()
   end
 
-  @friends_list_width 24
   defp zett_tree_item {entry, :protocol} do
     zett_tree_item(ANSI.color(5, 1, 1), "<#{entry}>/")
   end
@@ -182,7 +184,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp zett_tree_item color, str do
     color <>
     String.pad_trailing(str, @friends_list_width) <>
-    ANSI.color(0, 0, 0) <>
+    ANSI.color(3, 3, 3) <>
     ANSI.color_background(1, 1, 1) <>
     "|\n" <>
     ANSI.default_color <>
@@ -204,7 +206,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
     str  = zett_tree_list()
       |> Utils.pad(intended_height)
       |> Enum.slice(0..intended_height)
-      |> IO.inspect
       |> Enum.map(&zett_tree_item/1)
       |> Enum.join("")
     str <> ANSI.default_color() <> ANSI.default_background()
@@ -225,8 +226,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
     str =
       Ctrl.save_cursor() <>
       Ctrl.move(state.rows - 1, 0) <>
-      ANSI.color(1, 1, 1) <>
-      ANSI.color_background(3, 3, 3) <>
+      ANSI.color(0, 0, 0) <>
+      ANSI.color_background(1, 1, 1) <>
       String.pad_trailing("ZettKjett", state.cols) <>
       ANSI.default_color <>
       ANSI.default_background <>
@@ -243,6 +244,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       rows: Utils.parse_int(rows),
       cols: Utils.parse_int(cols)
     }
+    # IO.write ANSI.clear
     draw_tree state
     draw_statusbar state
     state
