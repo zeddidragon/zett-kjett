@@ -1,5 +1,5 @@
 defmodule ZettKjett do
-  alias ZettKjett.{Config, Protocol}
+  alias ZettKjett.{Config, Protocol, Utils}
   @state __MODULE__
   @interface ZettKjett.Interface
 

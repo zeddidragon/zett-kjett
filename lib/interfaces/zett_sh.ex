@@ -12,8 +12,14 @@ defmodule ZettKjett.Interfaces.ZettSH do
   alias ZettKjett.Interfaces.ZettSH.{Ctrl, State}
 
   def start_link do
-    Task.start_link &input_loop/0
-    Task.start_link &message_loop/0
+    state = %State{}
+    Task.start_link do
+      redraw state
+      input_loop()
+    end
+    Task.start_link do
+      message_loop state
+    end
   end
   
   defp system message do
@@ -23,24 +29,29 @@ defmodule ZettKjett.Interfaces.ZettSH do
     IO.puts "\rERROR: " <> message
   end
 
-  def message_loop do
-    receive do
+  def message_loop state do
+    state = receive do
       {{:switch_protocol}, protocol} ->
         system "Protocol changed to " <> protocol_name(protocol)
+        state
       {{:join_chat, _, user}, _} ->
         system "Now talking with " <> user.name
+        state
       {{:message, _, user, message}, _} ->
         IO.puts "\r <#{user.name}> " <> message.content
+        state
       {{:nick, user}, _} ->
         system "Nick changed to " <> user.name
+        state
       {{:me, _}, _} ->
-        :ok # Nothing
+        state
       {{:friends, _}, protocol} ->
-        system "Friend list received from " <> protocol_name(protocol)
+        redraw state
       message ->
         message |> inspect |> system
+        state
     end
-    message_loop()
+    message_loop state
   end
 
   def input_loop do
@@ -107,12 +118,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
   defp run_command "switch", _ do
     error "Usage: \"/switch <protocol>\""
-  end
-
-  defp run_command "friends", _ do
-    {rows, 0} = System.cmd "tput", ["lines"]
-    {cols, 0} = System.cmd "tput", ["cols"]
-    redraw %State{rows: Utils.parse_int(rows), cols: Utils.parse_int(cols)}
   end
 
   defp run_command "tell", [target | args] do
@@ -216,7 +221,15 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def redraw state do
+    {rows, 0} = System.cmd "tput", ["lines"]
+    {cols, 0} = System.cmd "tput", ["cols"]
+    state = %{
+      state |
+      rows: Utils.parse_int(rows),
+      cols: Utils.parse_int(cols)
+    }
     draw_tree state
+    state
   end
 
   def friends protocol do
