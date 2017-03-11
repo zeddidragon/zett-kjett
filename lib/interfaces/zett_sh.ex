@@ -13,17 +13,17 @@ defmodule ZettKjett.Interfaces.ZettSH do
   alias ZettKjett.Interfaces.ZettSH.{Ctrl, State}
   alias ZettKjett.Models.{Message}
   @friends_list_width 24
-  @chat_x @friends_list_width
+  @chat_x @friends_list_width + 1
 
   IO.write ANSI.clear
   def start_link do
     state = %State{}
     Task.start_link fn ->
-      state = redraw state
-      IO.write Ctrl.move(state.rows, 0)
       input_loop()
     end
     Task.start_link fn ->
+      state = redraw state
+      IO.write Ctrl.move(state.rows, 0)
       message_loop state
     end
   end
@@ -54,7 +54,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def message_loop state do
     state = receive do
       {:system_message, msg} ->
-        draw_history %{
+        redraw %{
           state |
           system_messages: [{nil, msg} | state.system_messages]
         }
@@ -65,7 +65,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
         system "Now talking with " <> user.name
         state
       {{:message, _, user, message}, _} ->
-        draw_history state
+        redraw state
       {{:nick, user}, _} ->
         system "Nick changed to " <> user.name
         state
@@ -83,7 +83,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def input_loop do
     me = ZettKjett.me
     prompt = me && me.name || ""
-    IO.gets(prompt <> "> ")
+    IO.gets("")
       |> String.trim
       |> parse_input
     input_loop()
@@ -153,14 +153,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
     error "Usage: \"/tell <friend> [<message>]\""
   end
 
-  defp run_command "history", [target | _] do
-    (friend = find_friend target)
-      && print_history(ZettKjett.history(friend))
-  end
-  defp run_command "history", _ do
-    print_history ZettKjett.history
-  end
-
   defp run_command "nick", [] do
     error "Usage: \"/nick <new name>\""
   end
@@ -191,7 +183,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp zett_tree_item {{user, _}, :friend} do
-    zett_tree_item(ANSI.color(4, 4, 4), "  @#{user.name}")
+    zett_tree_item(ANSI.color(4, 4, 4), "  #{user.name}")
   end
 
   defp zett_tree_item nil do
@@ -259,16 +251,43 @@ defmodule ZettKjett.Interfaces.ZettSH do
     state
   end
 
+  def history_item {user, msg}, state do
+    width = state.cols - @chat_x - 1
+    header =
+      if user do
+        ANSI.underline <>
+        ANSI.color(2, 2, 2) <>
+        String.pad_trailing(user.name, width) <>
+        ANSI.reset
+      else
+        ANSI.underline <>
+        ANSI.color(3, 1, 1) <>
+        String.pad_trailing("==SYSTEM==", width) <>
+        ANSI.reset
+      end
+    content = msg.content
+      |> String.split
+      |> Enum.reduce([""], fn word, [line | lines] ->
+        if String.length(line) + String.length(word) < width do
+          [line <> " " <> word | lines]
+        else
+          [" " <> word | [line | lines]]
+        end
+      end)
+      |> Enum.reverse
+      |> Enum.map(&String.pad_trailing(&1, width))
+    [header | content]
+  end
+
   def draw_history state do
     history = ZettKjett.history
       |> Enum.concat(state.system_messages)
-      |> Enum.sort_by(fn {user, msg} -> msg.created_at end)
-      |> Enum.flat_map(&chat_item/1)
-      |> Enum.join("\n" <> Ctrl.right(@friends_list_width))
-      |> Enum.slice((2 - state.rows)..-1)
+      |> Enum.sort_by(fn {user, msg} -> msg.sent_at end)
+      |> Enum.flat_map(&history_item(&1, state))
+      |> Enum.join("\n" <> Ctrl.right(@chat_x))
     str =
       Ctrl.save_cursor() <>
-      Ctrl.move(0, @friends_list_width) <>
+      Ctrl.move(0, @chat_x + 1) <>
       history <>
       Ctrl.load_cursor()
     IO.write str
@@ -286,6 +305,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     # IO.write ANSI.clear
     draw_tree state
     draw_statusbar state
+    draw_history state
     state
   end
 
@@ -330,10 +350,10 @@ defmodule ZettKjett.Interfaces.ZettSH.Ctrl do
   def down n do
     "\e[#{n}B"
   end
-  def left n do
+  def right n do
     "\e[#{n}C"
   end
-  def right n do
+  def left n do
     "\e[#{n}D"
   end
 end

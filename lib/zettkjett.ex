@@ -113,7 +113,6 @@ defmodule ZettKjett do
       %{protocol: protocol, chat: chat} ->
         Protocol.history protocol, chat
       _ ->
-        send @interface, {{:error, :no_protocol_selected}, nil}
         []
     end
   end
