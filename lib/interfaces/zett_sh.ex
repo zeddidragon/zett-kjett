@@ -2,7 +2,8 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
   defstruct [
     rows: 1,
     cols: 1,
-    expanded: %{}
+    expanded: %{},
+    system_messages: []
   ]
 end
 
@@ -10,9 +11,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
   alias IO.ANSI
   alias ZettKjett.Utils
   alias ZettKjett.Interfaces.ZettSH.{Ctrl, State}
+  alias ZettKjett.Models.{Message}
   @friends_list_width 24
   @chat_x @friends_list_width
 
+  IO.write ANSI.clear
   def start_link do
     state = %State{}
     Task.start_link fn ->
@@ -24,16 +27,37 @@ defmodule ZettKjett.Interfaces.ZettSH do
       message_loop state
     end
   end
-  
+
   defp system message do
-    IO.puts "\r=== " <> message 
+    time = :os.system_time
+    msg = %Message{
+      id:  "system|#{time}",
+      sent_at: time,
+      content: message,
+      user_id: nil,
+      channel_id: nil
+    }
+    send ZettKjett.Interface, {:system_message, msg}
   end
   defp error message do
-    IO.puts "\rERROR: " <> message
+    time = :os.system_time
+    msg = %Message{
+      id:  "error|#{time}",
+      sent_at: time,
+      content: message,
+      user_id: nil,
+      channel_id: nil
+    }
+    send ZettKjett.Interface, {:system_message, msg}
   end
 
   def message_loop state do
     state = receive do
+      {:system_message, msg} ->
+        draw_history %{
+          state |
+          system_messages: [{nil, msg} | state.system_messages]
+        }
       {{:switch_protocol}, protocol} ->
         system "Protocol changed to " <> protocol_name(protocol)
         state
@@ -41,8 +65,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
         system "Now talking with " <> user.name
         state
       {{:message, _, user, message}, _} ->
-        IO.puts "\r <#{user.name}> " <> message.content
-        state
+        draw_history state
       {{:nick, user}, _} ->
         system "Nick changed to " <> user.name
         state
@@ -232,6 +255,22 @@ defmodule ZettKjett.Interfaces.ZettSH do
       ANSI.default_color <>
       ANSI.default_background <>
       Ctrl.load_cursor
+    IO.write str
+    state
+  end
+
+  def draw_history state do
+    history = ZettKjett.history
+      |> Enum.concat(state.system_messages)
+      |> Enum.sort_by(fn {user, msg} -> msg.created_at end)
+      |> Enum.flat_map(&chat_item/1)
+      |> Enum.join("\n" <> Ctrl.right(@friends_list_width))
+      |> Enum.slice((2 - state.rows)..-1)
+    str =
+      Ctrl.save_cursor() <>
+      Ctrl.move(0, @friends_list_width) <>
+      history <>
+      Ctrl.load_cursor()
     IO.write str
     state
   end
