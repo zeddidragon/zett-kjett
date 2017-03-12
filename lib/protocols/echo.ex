@@ -1,6 +1,7 @@
 defmodule ZettKjett.Protocols.Echo do
   @behaviour ZettKjett.Protocols.Base
   alias ZettKjett.Models.{Channel, User, Message}
+  alias ZettKjett.Utils
 
   def start_link listener do
     {:ok, pid} = Task.start_link fn ->
@@ -13,7 +14,7 @@ defmodule ZettKjett.Protocols.Echo do
   defp loop listener do
     receive do
       {:send_message, content} ->
-        time = :erlang.now
+        time = Utils.now
         data = %{
           id: time,
           sent_at: time,

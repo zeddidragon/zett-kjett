@@ -45,16 +45,24 @@ defmodule ZettKjett.Utils do
     String.pad_leading to_string(num), 2, "0"
   end
 
-  def format_date 
+  def format_date {year, month, date} do
+    [year, month, date]
+      |> Enum.map(&pad/1)
+      |> Enum.join("-")
+  end
+
+  def format_time {hour, minute, _} do
+    [hour, minute]
+      |> Enum.map(&pad/1)
+      |> Enum.join(":")
+  end
 
   def format_timestamp stamp do
     {date, time} = :calendar.now_to_local_time(stamp)
-    Enum.join([
-      Enum.map([year, month, date], &pad/1)
-      Enum.map([])
-    ])
-    "#{year} #{month}-#{date} " <>
-    "#{String.pad_leading(to_string(hour), 2, "0")}:" <>
-    "#{String.pad_leading(to_string(minute), 2, "0")}"
+    "#{format_date(date)} #{format_time(time)}"
+  end
+  
+  def now do
+    :erlang.now
   end
 end

@@ -28,7 +28,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp system message do
-    time = :erlang.now
+    time = Utils.now
     msg = %Message{
       id:  "system|#{time}",
       sent_at: time,
@@ -39,7 +39,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     send ZettKjett.Interface, {:system_message, msg}
   end
   defp error message do
-    time = :erlang.now
+    time = Utils.now
     msg = %Message{
       id:  "error|#{time}",
       sent_at: time,
