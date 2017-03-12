@@ -52,10 +52,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def message_loop state do
     state = receive do
-      {_, {:data, "\e"}} ->
-        redraw state
       {_, {:data, char}}->
-        draw_commandline %{state | typing: (state.typing <> char) }
+        handle_input char, state
       {:system_message, msg} ->
         redraw %{
           state |
@@ -320,6 +318,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def draw_commandline state do
     str =
       Ctrl.move(state.rows, 0) <>
+      ANSI.clear_line <>
       state.typing
     IO.write str
     state
@@ -360,6 +359,18 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def tell target, message do
     (friend = find_friend(target))
       && tell_friend(friend, message)
+  end
+
+  def handle_input "\e", state do  #Escape
+    redraw state
+  end
+
+  def handle_input "\d", state do  #Backspace
+    draw_commandline %{state | typing: String.slice(state.typing, 0..-2)}
+  end
+
+  def handle_input c, state do
+    draw_commandline %{state | typing: state.typing <> c}
   end
 end
 
