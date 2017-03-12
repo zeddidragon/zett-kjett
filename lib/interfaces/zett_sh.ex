@@ -3,7 +3,8 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
     rows: 1,
     cols: 1,
     expanded: %{},
-    system_messages: []
+    system_messages: [],
+    typing: ""
   ]
 end
 
@@ -15,13 +16,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
   @friends_list_width 24
   @chat_x @friends_list_width + 1
 
-  IO.write ANSI.clear
   def start_link do
     state = %State{}
     Task.start_link fn ->
-      input_loop()
-    end
-    Task.start_link fn ->
+      Port.open({:spawn, "tty_sl -c -e"}, [:binary, :eof])
+      IO.write ANSI.clear
       state = redraw state
       IO.write Ctrl.move(state.rows, 0)
       message_loop state
@@ -53,6 +52,10 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def message_loop state do
     state = receive do
+      {_, {:data, "\e"}} ->
+        redraw state
+      {_, {:data, char}}->
+        draw_commandline %{state | typing: (state.typing <> char) }
       {:system_message, msg} ->
         redraw %{
           state |
@@ -77,15 +80,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
         state
     end
     message_loop state
-  end
-
-  def input_loop do
-    me = ZettKjett.me
-    prompt = me && me.name || ""
-    IO.gets("")
-      |> String.trim
-      |> parse_input
-    input_loop()
   end
 
   def parse_input input do
@@ -189,7 +183,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     String.pad_trailing(str, @friends_list_width) <>
     ANSI.color(3, 3, 3) <>
     ANSI.color_background(1, 1, 1) <>
-    "|\n" <>
+    "|\n\r" <>
     ANSI.default_color <>
     ANSI.default_background
   end
@@ -313,12 +307,20 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> Enum.sort_by(&timestamp/1)
       |> Enum.flat_map(&history_item(&1, state))
       |> Utils.pad_leading(height, String.duplicate(" ", width))
-      |> Enum.join("\n" <> Ctrl.right(@chat_x))
+      |> Enum.join("\n\r" <> Ctrl.right(@chat_x))
     str =
       Ctrl.save_cursor() <>
       Ctrl.move(0, @chat_x + 1) <>
       history <>
       Ctrl.load_cursor()
+    IO.write str
+    state
+  end
+
+  def draw_commandline state do
+    str =
+      Ctrl.move(state.rows, 0) <>
+      state.typing
     IO.write str
     state
   end
@@ -332,10 +334,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
       cols: Utils.parse_int(cols)
     }
     IO.write ANSI.clear
-    draw_tree state
-    draw_statusbar state
-    draw_history state
     state
+      |> draw_history()
+      |> draw_tree()
+      |> draw_statusbar()
+      |> draw_commandline()
   end
 
   def friends protocol do
