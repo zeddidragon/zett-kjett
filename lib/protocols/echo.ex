@@ -21,7 +21,7 @@ defmodule ZettKjett.Protocols.Echo do
         }
         send self(), data
       {:nick, user} ->
-        send listener, {:nick, user}
+        send listener, {:me, user}
       data ->
         message = %Message{
           id: data[:id],

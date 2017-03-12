@@ -134,17 +134,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
     ZettKjett.tell friend, string
   end
   
-  defp run_command "protocols", _ do
-    protocols()
-  end
-
-  defp run_command "switch", [target | _] do
-    switch target
-  end
-  defp run_command "switch", _ do
-    error "Usage: \"/switch <protocol>\""
-  end
-
   defp run_command "tell", [target | args] do
     tell target, Enum.join(args, " ")
   end
@@ -237,12 +226,19 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def draw_statusbar state do
+    me = ZettKjett.me
+    status =
+      if me do
+        "<#{ZettKjett.protocol}>/ #{me.name}"
+      else
+        "<no protocol selected>"
+      end
     str =
       Ctrl.save_cursor() <>
       Ctrl.move(state.rows - 1, 0) <>
       ANSI.color(0, 0, 0) <>
       ANSI.color_background(1, 1, 1) <>
-      String.pad_trailing("ZettKjett", state.cols) <>
+      String.pad_trailing(status, state.cols) <>
       ANSI.default_color <>
       ANSI.default_background <>
       Ctrl.load_cursor
@@ -361,12 +357,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def tell target, message do
     (friend = find_friend(target))
       && tell_friend(friend, message)
-  end
-
-  defp print_history messages do
-    for {user, message} <- Enum.reverse messages do
-      IO.puts "<#{user.name}> #{message.content}"
-    end
   end
 end
 
