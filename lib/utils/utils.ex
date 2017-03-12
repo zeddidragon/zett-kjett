@@ -19,10 +19,19 @@ defmodule ZettKjett.Utils do
     str |> String.trim |> String.to_integer
   end
 
-  def pad list, intended_length do 
+  def pad_leading list, intended_length, value \\ nil do 
     n = length list
     if n < intended_length do
-      Enum.concat list, fill (n + 1)..intended_length
+      Enum.concat fill((n + 1)..intended_length, value), list
+    else
+      list
+    end
+  end
+
+  def pad_trailing list, intended_length, value \\ nil do 
+    n = length list
+    if n < intended_length do
+      Enum.concat list, fill((n + 1)..intended_length, value)
     else
       list
     end

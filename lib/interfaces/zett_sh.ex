@@ -29,7 +29,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp system message do
-    time = :os.system_time
+    time = Timex.now
     msg = %Message{
       id:  "system|#{time}",
       sent_at: time,
@@ -40,7 +40,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     send ZettKjett.Interface, {:system_message, msg}
   end
   defp error message do
-    time = :os.system_time
+    time = Timex.now
     msg = %Message{
       id:  "error|#{time}",
       sent_at: time,
@@ -62,7 +62,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
         system "Protocol changed to " <> protocol_name(protocol)
         state
       {{:join_chat, _, user}, _} ->
-        system "Now talking with " <> user.name
         state
       {{:message, _, user, message}, _} ->
         redraw state
@@ -219,7 +218,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def zett_tree state do
     intended_height = zett_tree_height state
     str  = zett_tree_list()
-      |> Utils.pad(intended_height)
+      |> Utils.pad_trailing(intended_height)
       |> Enum.slice(0..intended_height)
       |> Enum.map(&zett_tree_item/1)
       |> Enum.join("")
@@ -251,22 +250,49 @@ defmodule ZettKjett.Interfaces.ZettSH do
     state
   end
 
+  def history_height state do
+    state.rows - 2  # Leave room for command line and status
+  end
+
+  def history_width state do
+    width = state.cols - @chat_x
+  end
+
+  def history_time stamp do
+    Timex.format! stamp, "{YYYY} {Mshort} {_D} {0h24}:{0m}"
+  end
+
+  defp cut_string string, width do
+    if String.length(string) < width do
+      [string]
+    else
+      [String.slice(string, 0..(width - 1)) |
+       cut_string(String.slice(string, width..-1), width)]
+    end
+  end
+
   def history_item {user, msg}, state do
-    width = state.cols - @chat_x - 1
+    stamp = history_time msg.sent_at
+    width = history_width(state) - 1
+    header_width = width - String.length(stamp)
+
     header =
       if user do
         ANSI.underline <>
         ANSI.color(2, 2, 2) <>
-        String.pad_trailing(user.name, width) <>
+        String.pad_trailing(" " <> user.name, header_width) <>
+        stamp <>
         ANSI.reset
       else
         ANSI.underline <>
         ANSI.color(3, 1, 1) <>
-        String.pad_trailing("==SYSTEM==", width) <>
+        String.pad_trailing(" SYSTEM", header_width) <>
+        stamp <>
         ANSI.reset
       end
     content = msg.content
       |> String.split
+      |> Enum.flat_map(&cut_string(&1, width))
       |> Enum.reduce([""], fn word, [line | lines] ->
         if String.length(line) + String.length(word) < width do
           [line <> " " <> word | lines]
@@ -279,11 +305,18 @@ defmodule ZettKjett.Interfaces.ZettSH do
     [header | content]
   end
 
+  defp timestamp {_, msg} do
+    msg.sent_at |> Timex.to_unix
+  end
+
   def draw_history state do
+    width = history_width(state)
+    height = history_height(state)
     history = ZettKjett.history
       |> Enum.concat(state.system_messages)
-      |> Enum.sort_by(fn {user, msg} -> msg.sent_at end)
+      |> Enum.sort_by(&timestamp/1)
       |> Enum.flat_map(&history_item(&1, state))
+      |> Utils.pad_leading(height, String.duplicate(" ", width))
       |> Enum.join("\n" <> Ctrl.right(@chat_x))
     str =
       Ctrl.save_cursor() <>
@@ -302,7 +335,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       rows: Utils.parse_int(rows),
       cols: Utils.parse_int(cols)
     }
-    # IO.write ANSI.clear
+    IO.write ANSI.clear
     draw_tree state
     draw_statusbar state
     draw_history state
