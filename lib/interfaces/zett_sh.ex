@@ -28,7 +28,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp system message do
-    time = Timex.now
+    time = DateTime.utc_now
     msg = %Message{
       id:  "system|#{time}",
       sent_at: time,
@@ -39,7 +39,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     send ZettKjett.Interface, {:system_message, msg}
   end
   defp error message do
-    time = Timex.now
+    time = DateTime.utc_now
     msg = %Message{
       id:  "error|#{time}",
       sent_at: time,
@@ -247,7 +247,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def history_time stamp do
-    Timex.format! stamp, "{YYYY} {Mshort} {_D} {0h24}:{0m}"
+    DateTime.to_iso8601 stamp
   end
 
   defp cut_string string, width do
@@ -294,7 +294,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp timestamp {_, msg} do
-    msg.sent_at |> Timex.to_unix
+    msg.sent_at |> DateTime.to_unix(:milliseconds)
   end
 
   def draw_history state do
@@ -304,6 +304,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> Enum.concat(state.system_messages)
       |> Enum.sort_by(&timestamp/1)
       |> Enum.flat_map(&history_item(&1, state))
+      |> Enum.take(-height)
       |> Utils.pad_leading(height, String.duplicate(" ", width))
       |> Enum.join("\n\r" <> Ctrl.right(@chat_x))
     str =
@@ -361,12 +362,18 @@ defmodule ZettKjett.Interfaces.ZettSH do
       && tell_friend(friend, message)
   end
 
-  def handle_input "\e", state do  #Escape
+  def handle_input "\e", state do  # Escape
     redraw state
   end
 
-  def handle_input "\d", state do  #Backspace
+  def handle_input "\d", state do  # Backspace
     draw_commandline %{state | typing: String.slice(state.typing, 0..-2)}
+  end
+
+  def handle_input "\r", state do  # Return
+    cmd = state.typing
+    parse_input cmd
+    %{state | typing: ""}
   end
 
   def handle_input c, state do

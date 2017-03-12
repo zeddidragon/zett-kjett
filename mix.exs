@@ -42,6 +42,6 @@ defmodule Zettkjett.Mixfile do
       {:tomlex, ">= 0.0.0"},
       {:websocket_client, git: "https://github.com/jeremyong/websocket_client.git"},
       {:json, "~> 1.0"},
-      {:timex, "~> 3.0"} ]
+      {:tzdata, "~> 0.5.11"} ]
   end
 end

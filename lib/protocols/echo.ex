@@ -13,7 +13,7 @@ defmodule ZettKjett.Protocols.Echo do
   defp loop listener do
     receive do
       {:send_message, content} ->
-        time = Timex.now
+        time = DateTime.utc_now
         data = %{
           id: time,
           sent_at: time,
