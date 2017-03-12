@@ -28,7 +28,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp system message do
-    time = DateTime.utc_now
+    time = :erlang.now
     msg = %Message{
       id:  "system|#{time}",
       sent_at: time,
@@ -39,7 +39,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     send ZettKjett.Interface, {:system_message, msg}
   end
   defp error message do
-    time = DateTime.utc_now
+    time = :erlang.now
     msg = %Message{
       id:  "error|#{time}",
       sent_at: time,
@@ -246,10 +246,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
     width = state.cols - @chat_x
   end
 
-  def history_time stamp do
-    DateTime.to_iso8601 stamp
-  end
-
   defp cut_string string, width do
     if String.length(string) < width do
       [string]
@@ -260,7 +256,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def history_item {user, msg}, state do
-    stamp = history_time msg.sent_at
+    stamp = Utils.format_timestamp msg.sent_at
     width = history_width(state) - 1
     header_width = width - String.length(stamp)
 
@@ -294,7 +290,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp timestamp {_, msg} do
-    msg.sent_at |> DateTime.to_unix(:milliseconds)
+    msg.sent_at
   end
 
   def draw_history state do

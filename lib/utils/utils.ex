@@ -40,4 +40,21 @@ defmodule ZettKjett.Utils do
   def fill range, value \\ nil do
     Enum.map range, fn v -> value end
   end
+
+  defp pad num do
+    String.pad_leading to_string(num), 2, "0"
+  end
+
+  def format_date 
+
+  def format_timestamp stamp do
+    {date, time} = :calendar.now_to_local_time(stamp)
+    Enum.join([
+      Enum.map([year, month, date], &pad/1)
+      Enum.map([])
+    ])
+    "#{year} #{month}-#{date} " <>
+    "#{String.pad_leading(to_string(hour), 2, "0")}:" <>
+    "#{String.pad_leading(to_string(minute), 2, "0")}"
+  end
 end
