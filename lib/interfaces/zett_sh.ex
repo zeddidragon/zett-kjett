@@ -4,7 +4,9 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
     cols: 1,
     expanded: %{},
     system_messages: [],
-    typing: ""
+    typing: "",
+    typing_pos: 1,
+    mode: :insert
   ]
 end
 
@@ -53,7 +55,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def message_loop state do
     state = receive do
       {_, {:data, char}}->
-        handle_input char, state
+        handle_input state.mode, char, state
       {:system_message, msg} ->
         redraw %{
           state |
@@ -336,7 +338,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
     str =
       Ctrl.move(state.rows, 0) <>
       ANSI.clear_line <>
-      state.typing
+      state.typing <>
+      Ctrl.move(state.rows, state.typing_pos)
     IO.write str
     state
   end
@@ -378,22 +381,63 @@ defmodule ZettKjett.Interfaces.ZettSH do
       && tell_friend(friend, message)
   end
 
-  def handle_input "\e", state do  # Escape
+  def handle_input mode, "\e", state do  # Escape
     redraw state
   end
 
-  def handle_input "\d", state do  # Backspace
-    draw_commandline %{state | typing: String.slice(state.typing, 0..-2)}
+  def handle_input mode, "\d", state do  # Backspace
+    draw_commandline %{
+      state |
+      typing: String.slice(state.typing, 0..-2),
+      typing_pos: max(state.typing_pos - 1, 1)
+    }
   end
 
-  def handle_input "\r", state do  # Return
+  def handle_input mode, "\r", state do  # Return
     cmd = state.typing
     parse_input cmd
-    %{state | typing: ""}
+    %{
+      state |
+      typing: "",
+      typing_pos: 1
+    }
   end
 
-  def handle_input c, state do
-    draw_commandline %{state | typing: state.typing <> c}
+  def handle_input mode, "\e[A", state do  # Up arrow
+    # TODO previous in command history
+    state
+  end
+
+  def handle_input mode, "\e[B", state do  # Down arrow
+    # TODO next in command history
+    state
+  end
+
+  defp move_typing_pos pos, state do
+    new_pos = min(max(1, pos), String.length(state.typing))
+    Ctrl.move(state.rows, new_pos) |> IO.write
+    %{state | typing_pos: new_pos}
+  end
+
+  def handle_input mode, "\e[C", state do  # Right arrow
+    move_typing_pos(state.typing_pos + 1, state)
+  end
+
+  def handle_input mode, "\e[D", state do  # Left arrow
+    move_typing_pos(state.typing_pos - 1, state)
+  end
+
+  def handle_input :insert, c, state do
+    draw_commandline %{
+      state |
+      typing: state.typing <> c,
+      typing_pos: state.typing_pos + 1
+    }
+  end
+
+  def handle_input mode, c, state do
+    Utils.inspect c
+    state
   end
 end
 
