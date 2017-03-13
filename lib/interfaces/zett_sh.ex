@@ -6,7 +6,7 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
     system_messages: [],
     typing: "",
     typing_pos: 0,
-    mode: :insert
+    mode: :normal
   ]
 end
 
@@ -15,11 +15,26 @@ defmodule ZettKjett.Interfaces.ZettSH do
   alias ZettKjett.Utils
   alias ZettKjett.Interfaces.ZettSH.{Ctrl, State}
   alias ZettKjett.Models.{Message}
+  alias ZettKjett.Config
   @friends_list_width 24
   @chat_x @friends_list_width + 1
 
+  @modes ["insert", "normal", "visual"]
   def start_link do
-    state = %State{}
+    config = (Config.get[:Interfaces] || %{})[:ZettSH] || %{}
+    mode = config[:mode]
+    mode =
+      cond do
+        Enum.member? @modes, mode ->
+          String.to_atom mode
+        !mode ->
+          :normal
+        true ->
+          valid = Enum.join @modes, ", "
+          raise ~s(Invalid mode "#{mode}". Valid modes are: [#{valid}])
+      end
+    state = %State{mode: mode}
+
     Task.start_link fn ->
       Port.open({:spawn, "tty_sl -c -e"}, [:binary, :eof])
       IO.write ANSI.clear
@@ -83,7 +98,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def parse_input input do
-    if "/" == String.first input do
+    if ":" == String.first input do
       [cmd | args] = input
         |> String.slice(1..-1)
         |> String.split
@@ -132,18 +147,18 @@ defmodule ZettKjett.Interfaces.ZettSH do
     tell target, Enum.join(args, " ")
   end
   defp run_command "tell", _ do
-    error "Usage: \"/tell <friend> [<message>]\""
+    error ~s(Usage: ":tell <friend> [<message>]")
   end
 
   defp run_command "nick", [] do
-    error "Usage: \"/nick <new name>\""
+    error ~s("Usage: ":nick <new name>")
   end
   defp run_command "nick", args do
     nick Enum.join(args, " ")
   end
 
   defp run_command unknown, _ do
-    error "Unknown function: /" <> unknown
+    error "Unknown function: :" <> unknown
   end
 
   def protocols do
@@ -227,6 +242,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       else
         "<no protocol selected>"
       end
+    status = "#{state.mode}|#{status}"
     str =
       Ctrl.save_cursor() <>
       Ctrl.move(state.rows - 1, 0) <>
@@ -385,7 +401,31 @@ defmodule ZettKjett.Interfaces.ZettSH do
     String.split_at state.typing, state.typing_pos
   end
 
-  def handle_input mode, "\e", state do  # Escape
+  defp change_mode state, mode do
+    %{state | mode: mode}
+      |> draw_statusbar()
+      |> draw_commandline()
+  end
+
+  defp set_typing state, str do
+    %{state | typing: str, typing_pos: String.length(str)}
+  end
+
+  def handle_input _mode, "\e", state do  # Escape
+    change_mode state, :normal
+  end
+
+  def handle_input :normal, "i", state do
+    change_mode state, :insert
+  end
+
+  def handle_input :normal, ":", state do
+    state
+      |> set_typing(":")
+      |> change_mode(:insert)
+  end
+
+  def handle_input _mode, <<18>>, state do  # C-r
     redraw state
   end
 
