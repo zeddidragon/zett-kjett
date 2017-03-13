@@ -1,12 +1,14 @@
 defmodule ZettKjett.Interfaces.ZettSH.State do
   defstruct [
-    rows: 1,
-    cols: 1,
-    expanded: %{},
-    system_messages: [],
-    typing: "",
-    typing_pos: 0,
-    mode: :normal
+    rows: 1,  # terminal height
+    cols: 1,  # terminal width
+    expanded: %{},  # which items in the tree are expanded
+    system_messages: [],  # messages from ZettSH to show in chat history
+    typing: "",  # currently typed message
+    typing_pos: 0,  # cursor location in command line
+    mode: :normal,  # overall mode
+    command: nil,  # currently prepared normal-mode command
+    command_count: "",  # repeats for normal-mode commands
   ]
 end
 
@@ -401,8 +403,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
     String.split_at state.typing, state.typing_pos
   end
 
-  defp change_mode state, mode do
+  defp set_mode state, mode do
+    offset = if state.mode == :insert do -1 else 0 end
     %{state | mode: mode}
+      |> set_typing_pos(state.typing_pos + offset)
+      |> reset_command()
       |> draw_statusbar()
       |> draw_commandline()
   end
@@ -411,24 +416,41 @@ defmodule ZettKjett.Interfaces.ZettSH do
     %{state | typing: str, typing_pos: String.length(str)}
   end
 
+  defp set_typing_pos state, pos do
+    new_pos = min(max(0, pos), String.length(state.typing))
+    Ctrl.move(state.rows, new_pos + 1) |> IO.write
+    %{state | typing_pos: new_pos}
+  end
+
+  defp reset_command state do
+    %{state | command: nil, command_count: ""}
+  end
+
+  # Mode transitions
   def handle_input _mode, "\e", state do  # Escape
-    change_mode state, :normal
+    set_mode state, :normal
   end
 
   def handle_input :normal, "i", state do
-    change_mode state, :insert
+    set_mode state, :insert
+  end
+
+  def handle_input :normal, "a", state do
+    set_typing_pos(state, state.typing_pos + 1)
+      |> set_mode(:insert)
   end
 
   def handle_input :normal, ":", state do
     state
       |> set_typing(":")
-      |> change_mode(:insert)
+      |> set_mode(:insert)
   end
 
   def handle_input _mode, <<18>>, state do  # C-r
     redraw state
   end
 
+  # Insert mode
   def handle_input mode, "\d", state do  # Backspace
     {pre, post} = typing_split state
     pre = String.slice(pre, 0..-2)
@@ -459,18 +481,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
     state
   end
 
-  defp move_typing_pos pos, state do
-    new_pos = min(max(0, pos), String.length(state.typing))
-    Ctrl.move(state.rows, new_pos + 1) |> IO.write
-    %{state | typing_pos: new_pos}
-  end
-
   def handle_input mode, "\e[C", state do  # Right arrow
-    move_typing_pos(state.typing_pos + 1, state)
+    set_typing_pos(state, state.typing_pos + 1)
   end
 
   def handle_input mode, "\e[D", state do  # Left arrow
-    move_typing_pos(state.typing_pos - 1, state)
+    set_typing_pos(state, state.typing_pos - 1)
   end
 
   def handle_input :insert, c, state do
