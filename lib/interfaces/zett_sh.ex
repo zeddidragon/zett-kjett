@@ -255,26 +255,27 @@ defmodule ZettKjett.Interfaces.ZettSH do
     end
   end
 
-  def history_item {user, msg}, state do
+  def history_header {user, msg}, state do
     stamp = Utils.format_timestamp msg.sent_at
-    width = history_width(state) - 1
-    header_width = width - String.length(stamp)
+    width = history_width(state) - String.length(stamp)
+    if user do
+      ANSI.underline <>
+      ANSI.color(2, 2, 2) <>
+      String.pad_trailing(" " <> user.name, width) <>
+      stamp <>
+      ANSI.reset
+    else
+      ANSI.underline <>
+      ANSI.color(3, 1, 1) <>
+      String.pad_trailing(" SYSTEM", width) <>
+      stamp <>
+      ANSI.reset
+    end
+  end
 
-    header =
-      if user do
-        ANSI.underline <>
-        ANSI.color(2, 2, 2) <>
-        String.pad_trailing(" " <> user.name, header_width) <>
-        stamp <>
-        ANSI.reset
-      else
-        ANSI.underline <>
-        ANSI.color(3, 1, 1) <>
-        String.pad_trailing(" SYSTEM", header_width) <>
-        stamp <>
-        ANSI.reset
-      end
-    content = msg.content
+  def history_content {_, msg}, state do
+    width = history_width(state) - 1
+    msg.content
       |> String.split
       |> Enum.flat_map(&cut_string(&1, width))
       |> Enum.reduce([""], fn word, [line | lines] ->
@@ -286,7 +287,24 @@ defmodule ZettKjett.Interfaces.ZettSH do
       end)
       |> Enum.reverse
       |> Enum.map(&String.pad_trailing(&1, width))
-    [header | content]
+  end
+
+  def history_item [nil, {user, msg}], state do
+    [ history_header({user, msg}, state),
+      history_content({user, msg}, state)
+    ]
+  end
+
+  @same_time 300  # 5 minutes
+  def history_item [{prev_user, prev_msg}, {user, msg}], state do
+    same_user = prev_user == user
+    same_time = Utils.time_diff(prev_msg.sent_at, msg.sent_at) < @same_time
+    content = history_content({user, msg}, state)
+    if same_user && same_time do
+      content
+    else
+      [history_header({user, msg}, state) | content]
+    end
   end
 
   defp timestamp {_, msg} do
@@ -299,6 +317,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
     history = ZettKjett.history
       |> Enum.concat(state.system_messages)
       |> Enum.sort_by(&timestamp/1)
+      |> List.insert_at(0, nil)
+      |> Enum.chunk(2, 1)
       |> Enum.flat_map(&history_item(&1, state))
       |> Enum.take(-height)
       |> Utils.pad_leading(height, String.duplicate(" ", width))

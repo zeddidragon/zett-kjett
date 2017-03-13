@@ -38,7 +38,7 @@ defmodule ZettKjett.Utils do
   end
 
   def fill range, value \\ nil do
-    Enum.map range, fn v -> value end
+    Enum.map range, fn _ -> value end
   end
 
   defp pad num do
@@ -57,12 +57,21 @@ defmodule ZettKjett.Utils do
       |> Enum.join(":")
   end
 
-  def format_timestamp stamp do
-    {date, time} = :calendar.now_to_local_time(stamp)
+  def format_timestamp {monotonic, _, offset} do
+    system_time = monotonic + offset
+    seconds = :erlang.convert_time_unit(system_time, :native, :seconds)
+    unit = {div(seconds, 1_000_000), rem(seconds, 1_000_000), 0}
+    {date, time} = :calendar.now_to_local_time(unit)
     "#{format_date(date)} #{format_time(time)}"
+  end
+
+  def time_diff {mono1, _, _}, {mono2, _, _} do
+    :erlang.convert_time_unit(abs(mono2 - mono1), :native, :seconds)
   end
   
   def now do
-    :erlang.now
+    { :erlang.monotonic_time,
+      :erlang.unique_integer([:monotonic]),
+      :erlang.time_offset }
   end
 end
