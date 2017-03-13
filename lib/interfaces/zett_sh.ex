@@ -5,7 +5,7 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
     expanded: %{},
     system_messages: [],
     typing: "",
-    typing_pos: 1,
+    typing_pos: 0,
     mode: :insert
   ]
 end
@@ -339,7 +339,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       Ctrl.move(state.rows, 0) <>
       ANSI.clear_line <>
       state.typing <>
-      Ctrl.move(state.rows, state.typing_pos)
+      Ctrl.move(state.rows, state.typing_pos + 1)
     IO.write str
     state
   end
@@ -381,15 +381,21 @@ defmodule ZettKjett.Interfaces.ZettSH do
       && tell_friend(friend, message)
   end
 
+  def typing_split state do
+    String.split_at state.typing, state.typing_pos
+  end
+
   def handle_input mode, "\e", state do  # Escape
     redraw state
   end
 
   def handle_input mode, "\d", state do  # Backspace
+    {pre, post} = typing_split state
+    pre = String.slice(pre, 0..-2)
     draw_commandline %{
       state |
-      typing: String.slice(state.typing, 0..-2),
-      typing_pos: max(state.typing_pos - 1, 1)
+      typing: pre <> post,
+      typing_pos: String.length(pre)
     }
   end
 
@@ -399,7 +405,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     %{
       state |
       typing: "",
-      typing_pos: 1
+      typing_pos: 0
     }
   end
 
@@ -414,8 +420,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp move_typing_pos pos, state do
-    new_pos = min(max(1, pos), String.length(state.typing))
-    Ctrl.move(state.rows, new_pos) |> IO.write
+    new_pos = min(max(0, pos), String.length(state.typing))
+    Ctrl.move(state.rows, new_pos + 1) |> IO.write
     %{state | typing_pos: new_pos}
   end
 
@@ -428,9 +434,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def handle_input :insert, c, state do
+    {pre, post} = typing_split state
+    str = pre <> c <> post
     draw_commandline %{
       state |
-      typing: state.typing <> c,
+      typing: str,
       typing_pos: state.typing_pos + 1
     }
   end

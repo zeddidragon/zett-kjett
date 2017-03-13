@@ -1,10 +1,16 @@
-# See README.md for how to acquire a token
-
 [Protocols.Discord]
 # enabled = true  # Uncomment to enable
+
+# See README.md for how to acquire a token
 token = "<token>"
+
 
 # Only one interface can be enabled at a time
 # The first enabled interface will be selected
-[Interfaces.Bash]
-enabled = true  # Uncomment to enable
+[Interfaces.ZettSH]
+enabled = true
+
+# Mode to start in
+# Valid values "insert", "normal", and "visual"
+# Users experienced with vim may prefer "normal"
+mode = "insert"
