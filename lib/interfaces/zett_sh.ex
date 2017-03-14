@@ -27,7 +27,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     mode = config[:mode]
     mode =
       cond do
-        Enum.member? @modes, mode ->
+        mode in @modes ->
           String.to_atom mode
         !mode ->
           :normal
@@ -236,21 +236,26 @@ defmodule ZettKjett.Interfaces.ZettSH do
     state
   end
 
-  def draw_statusbar state do
+  defp status(%State{mode: :normal} = state) do
+    "#{state.command}#{state.command_count}"
+  end
+
+  defp status(%State{mode: :insert} = state) do
     me = ZettKjett.me
-    status =
-      if me do
-        "<#{ZettKjett.protocol}>/ #{me.name}"
-      else
-        "<no protocol selected>"
-      end
-    status = "#{state.mode}|#{status}"
+    if me do
+      "<#{ZettKjett.protocol}>/ #{me.name}"
+    else
+      "<no protocol selected>"
+    end
+  end
+
+  def draw_statusbar state do
     str =
       Ctrl.save_cursor() <>
       Ctrl.move(state.rows - 1, 0) <>
       ANSI.color(0, 0, 0) <>
       ANSI.color_background(1, 1, 1) <>
-      String.pad_trailing(status, state.cols) <>
+      String.pad_trailing(status(state), state.cols) <>
       ANSI.default_color <>
       ANSI.default_background <>
       Ctrl.load_cursor
@@ -421,6 +426,22 @@ defmodule ZettKjett.Interfaces.ZettSH do
     Ctrl.move(state.rows, new_pos + 1) |> IO.write
     %{state | typing_pos: new_pos}
   end
+  
+  defp motion state, :line_start do
+    0  # TODO: Jump to beginning of current line, before first non-whitespace
+  end
+
+  defp motion state, :line_end do
+    String.length(state.typing)  # TODO: Jump to end of current line
+  end
+
+  defp motion state, :word_next do
+    state.typing_pos
+  end
+
+  defp motion state, :word_previous do
+    state.typing_pos
+  end
 
   defp reset_command state do
     %{state | command: nil, command_count: ""}
@@ -436,7 +457,20 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def handle_input :normal, "a", state do
-    set_typing_pos(state, state.typing_pos + 1)
+    state
+      |> set_typing_pos(state.typing_pos + 1)
+      |> set_mode(:insert)
+  end
+
+  def handle_input :normal, "I", state do
+    state
+      |> set_typing_pos(motion(state, :line_start))
+      |> set_mode(:insert)
+  end
+
+  def handle_input :normal, "A", state do
+    state
+      |> set_typing_pos(motion(state, :line_end))
       |> set_mode(:insert)
   end
 
@@ -450,8 +484,26 @@ defmodule ZettKjett.Interfaces.ZettSH do
     redraw state
   end
 
+  def execute(%State{command: nil} = state, to_pos) do
+    set_typing_pos(state, to_pos)
+      |> draw_statusbar()
+  end
+
+  # Normal mode
+  def handle_input(:normal, "0", %State{command_count: ""} = state) do
+    execute(state, 0)
+  end
+
+  def handle_input(:normal, "$", state) do
+    execute(state, motion(state, :line_end))
+  end
+
+  def handle_input(:normal, n, state) when n in ~w(0 1 2 3 4 5 6 7 8 9) do
+    draw_statusbar %{state | command_count: state.command_count <> n}
+  end
+
   # Insert mode
-  def handle_input mode, "\d", state do  # Backspace
+  def handle_input _mode, "\d", state do  # Backspace
     {pre, post} = typing_split state
     pre = String.slice(pre, 0..-2)
     draw_commandline %{
@@ -461,7 +513,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     }
   end
 
-  def handle_input mode, "\r", state do  # Return
+  def handle_input _mode, "\r", state do  # Return
     cmd = state.typing
     parse_input cmd
     %{
