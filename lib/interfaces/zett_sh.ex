@@ -4,9 +4,9 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
     cols: 1,  # terminal width
     expanded: %{},  # which items in the tree are expanded
     system_messages: [],  # messages from ZettSH to show in chat history
-    typing: "",  # currently typed message
-    typing_pos: 0,  # cursor location in command line
-    typing_col: 0,  # for preserving column when moving through short lines
+    typing: [""],  # currently typed message
+    typing_row: 0,  # cursor row in command line
+    typing_col: 0,  # cursor column in command line
     mode: :normal,  # overall mode
     command: nil,  # currently prepared normal-mode command
     command_count: "",  # repeats for normal-mode commands
@@ -24,6 +24,15 @@ defmodule ZettKjett.Interfaces.ZettSH do
   @chat_x @friends_list_width + 1
   @newline "\n\r"
 
+  @debug_text "
+    Four scores and seven years ago
+    I did this multiline thing to check out multiline functionality
+    And it was awesome
+          Maybe
+    I hope
+      Tessst
+  "
+
   @modes ["insert", "normal", "visual"]
   def start_link do
     config = (Config.get[:Interfaces] || %{})[:ZettSH] || %{}
@@ -38,7 +47,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
           valid = Enum.join @modes, ", "
           raise ~s(Invalid mode "#{mode}". Valid modes are: [#{valid}])
       end
-    state = %State{mode: mode}
+    state = %State{mode: mode, typing: String.split(@debug_text, "\n")}
 
     Task.start_link fn ->
       Port.open({:spawn, "tty_sl -c -e"}, [:binary, :eof])
@@ -255,7 +264,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def draw_statusbar state do
     str =
       Ctrl.save_cursor() <>
-      Ctrl.move(state.rows - 1, 0) <>
+      Ctrl.move(command_row(state) - 1, 0) <>
       ANSI.color(0, 0, 0) <>
       ANSI.color_background(1, 1, 1) <>
       String.pad_trailing(status(state), state.cols) <>
@@ -361,11 +370,17 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def draw_commandline state do
+    start = command_row(state)
+    row = start + state.typing_row
+    col = min(state.typing_col, typing_cols(state))
+    content = state.typing
+      |> Enum.map(&String.pad_trailing(&1, state.cols, " "))
+      |> Enum.join(@newline)
     str =
-      Ctrl.move(state.rows, 0) <>
+      Ctrl.move(start, 0) <>
       ANSI.clear_line <>
-      state.typing <>
-      Ctrl.move(state.rows, state.typing_pos + 1)
+      content <>
+      Ctrl.move(row, col + 1)
     IO.write str
     state
   end
@@ -413,21 +428,34 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   defp set_mode state, mode do
     offset = if state.mode == :insert do -1 else 0 end
+    col = max(0, state.typing_col + offset)
     %{state | mode: mode}
-      |> set_typing_pos(state.typing_pos + offset)
+      |> set_typing_pos({state.typing_row, col})
       |> reset_command()
       |> draw_statusbar()
       |> draw_commandline()
   end
 
   defp set_typing state, str do
-    %{state | typing: str, typing_pos: String.length(str)}
+    %{ state |
+      typing: [str],
+      typing_col: String.length(str),
+      typing_row: length(state)
+    }
   end
 
-  defp set_typing_pos state, pos do
-    new_pos = min(max(0, pos), String.length(state.typing))
-    Ctrl.move(state.rows, new_pos + 1) |> IO.write
-    %{state | typing_pos: new_pos}
+  defp command_row state do
+    state.rows - length(state.typing) + 1
+  end
+
+  defp set_typing_pos state, {row, col} do
+    state = %{ state |
+      typing_row: row,
+      typing_col: col
+    }
+    Ctrl.move(command_row(state) + row, min(col, typing_cols(state)) + 1)
+      |> IO.write
+    state
   end
 
   defp parse_count str do
@@ -442,65 +470,50 @@ defmodule ZettKjett.Interfaces.ZettSH do
     parse_count state.motion_count
   end
 
+  defp typing_line state do
+    Enum.at state.typing, state.typing_row
+  end
+
+  defp typing_cols state do
+    state
+      |> typing_line()
+      |> String.length
+  end
+
   # Left
-  defp motion state, "h" do
-    {pre, _post} = typing_split state
-    line = pre
-      |> String.split(@newline)
-      |> List.last
-    diff = min(String.length(line), motion_count(state))
-    state.typing_pos - diff
+  defp motion(state, "h") do
+    cols = typing_cols(state)
+    count = motion_count(state)
+    col = max(0, min(cols, state.typing_col) - count)
+    {state.typing_row, col}
   end
 
   # Right
-  defp motion state, "l" do
-    {_pre, post} = typing_split state
-    line = post
-      |> String.split(@newline)
-      |> hd
-    diff = min(String.length(line), motion_count(state))
-    state.typing_pos + diff
+  defp motion(state, "l") do
+    cols = typing_cols(state)
+    count = motion_count(state)
+    col =
+      if cols < state.typing_col do
+        state.typing_col
+      else
+        min(cols, state.typing_col + count)
+      end
+    {state.typing_row, col}
   end
 
   # Up
   defp motion state, "k" do
-    {pre, _post} = typing_split state
-    lines = String.split(pre, @newline)
-    if 1 == length lines do
-      state.typing_pos
-    else
-      [above | current] = Enum.slice lines, -2..-1
-      current_len = String.length current
-      above_len = String.length above
-      state.typing_pos
-        - current_len
-        - above_len
-        + min(above_len, state.typing_col)
-    end
+    count = motion_count(state)
+    row = max(0, state.typing_row - count)
+    {row, state.typing_col}
   end
 
   # Down
   defp motion state, "j" do
-    {_pre, post} = typing_split state
-    lines = String.split(post, @newline)
-    if 1 == length lines do
-      state.typing_pos
-    else
-      [current | below] = Enum.slice lines, 0..1
-      current_len = String.length current
-      below_len = String.length below
-      state.typing_pos
-        + current_len
-        + min(below_len, state.typing_col)
-    end
-  end
-  
-  defp motion state, :line_start do
-    0  # TODO: Jump to beginning of current line, before first non-whitespace
-  end
-
-  defp motion state, :line_end do
-    String.length(state.typing)  # TODO: Jump to end of current line
+    count = motion_count(state)
+    rows = length(state.typing)
+    row = min(rows - 1, state.typing_row + count)
+    {row, state.typing_col}
   end
 
   defp reset_command state do
@@ -518,26 +531,26 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def handle_input :normal, "a", state do
     state
-      |> set_typing_pos(state.typing_pos + 1)
       |> set_mode(:insert)
+      |> set_typing_pos(motion(state, "l"))
   end
 
   def handle_input :normal, "I", state do
     state
-      |> set_typing_pos(motion(state, "^"))
       |> set_mode(:insert)
+      |> set_typing_pos(motion(state, "^"))
   end
 
   def handle_input :normal, "A", state do
     state
-      |> set_typing_pos(motion(state, "$"))
       |> set_mode(:insert)
+      |> set_typing_pos(motion(state, "$"))
   end
 
   def handle_input :normal, ":", state do
     state
-      |> set_typing(":")
       |> set_mode(:insert)
+      |> set_typing(":")
   end
 
   def handle_input _mode, <<18>>, state do  # C-r
@@ -550,28 +563,13 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Normal mode
-  @motions ~w(h l ^ $)
+  @motions ~w(h j k l ^ $)
   def handle_input(:normal, c, state) when c in @motions do
-    state = %{state | typing_col: 0}
-    draw_commandline %{state | typing_pos: motion(state, c)}
-  end
-
-  defp typing_col state do
-    {pre, _post} = typing_split state
-    pre
-      |> String.split(@newline)
-      |> List.last
-      |> String.length
-  end
-
-  @vmotions ~w(j k)
-  def handle_input(:normal, c, state) when c in @vmotions do
-    state = %{state | typing_col: max(state.typing_col, typing_col(state))}
-    draw_commandline %{state | typing_pos: motion(state, c)}
+    execute(state, motion(state, c))
   end
 
   def handle_input(:normal, "0", %State{command_count: ""} = state) do
-    execute(state, 0)
+    execute(state, motion(state, "0"))
   end
 
   def handle_input(:normal, n, state) when n in ~w(0 1 2 3 4 5 6 7 8 9) do
