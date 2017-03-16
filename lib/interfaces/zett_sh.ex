@@ -52,7 +52,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp system message do
     time = Utils.now
     msg = %Message{
-      id:  "system|#{time}",
+      id:  "system|#{Utils.format_timestamp(time)}",
       sent_at: time,
       content: message,
       user_id: nil,
@@ -63,7 +63,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp error message do
     time = Utils.now
     msg = %Message{
-      id:  "error|#{time}",
+      id:  "error|#{Utils.format_timestamp(time)}",
       sent_at: time,
       content: message,
       user_id: nil,
@@ -503,14 +503,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
     String.length(state.typing)  # TODO: Jump to end of current line
   end
 
-  defp motion state, :word_next do
-    state.typing_pos
-  end
-
-  defp motion state, :word_previous do
-    state.typing_pos
-  end
-
   defp reset_command state do
     %{state | command: nil, command_count: ""}
   end
@@ -532,13 +524,13 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def handle_input :normal, "I", state do
     state
-      |> set_typing_pos(motion(state, :line_start))
+      |> set_typing_pos(motion(state, "^"))
       |> set_mode(:insert)
   end
 
   def handle_input :normal, "A", state do
     state
-      |> set_typing_pos(motion(state, :line_end))
+      |> set_typing_pos(motion(state, "$"))
       |> set_mode(:insert)
   end
 
@@ -558,7 +550,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Normal mode
-  @motions ~w(h l)
+  @motions ~w(h l ^ $)
   def handle_input(:normal, c, state) when c in @motions do
     state = %{state | typing_col: 0}
     draw_commandline %{state | typing_pos: motion(state, c)}
@@ -580,10 +572,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def handle_input(:normal, "0", %State{command_count: ""} = state) do
     execute(state, 0)
-  end
-
-  def handle_input(:normal, "$", state) do
-    execute(state, motion(state, :line_end))
   end
 
   def handle_input(:normal, n, state) when n in ~w(0 1 2 3 4 5 6 7 8 9) do
