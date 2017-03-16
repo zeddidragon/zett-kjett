@@ -6,9 +6,11 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
     system_messages: [],  # messages from ZettSH to show in chat history
     typing: "",  # currently typed message
     typing_pos: 0,  # cursor location in command line
+    typing_col: 0,  # for preserving column when moving through short lines
     mode: :normal,  # overall mode
     command: nil,  # currently prepared normal-mode command
     command_count: "",  # repeats for normal-mode commands
+    motion_count: ""
   ]
 end
 
@@ -20,6 +22,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   alias ZettKjett.Config
   @friends_list_width 24
   @chat_x @friends_list_width + 1
+  @newline "\n\r"
 
   @modes ["insert", "normal", "visual"]
   def start_link do
@@ -200,7 +203,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     String.pad_trailing(str, @friends_list_width) <>
     ANSI.color(3, 3, 3) <>
     ANSI.color_background(1, 1, 1) <>
-    "|\n\r" <>
+    "|#{@newline}" <>
     ANSI.default_color <>
     ANSI.default_background
   end
@@ -347,7 +350,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> Enum.flat_map(&history_item(&1, state))
       |> Enum.take(-height)
       |> Utils.pad_leading(height, String.duplicate(" ", width))
-      |> Enum.join("\n\r" <> Ctrl.right(@chat_x))
+      |> Enum.join(@newline <> Ctrl.right(@chat_x))
     str =
       Ctrl.save_cursor() <>
       Ctrl.move(0, @chat_x + 1) <>
@@ -426,6 +429,71 @@ defmodule ZettKjett.Interfaces.ZettSH do
     Ctrl.move(state.rows, new_pos + 1) |> IO.write
     %{state | typing_pos: new_pos}
   end
+
+  defp parse_count str do
+    if str == "" do
+      1
+    else
+      Utils.parse_int(str)
+    end
+  end
+
+  defp motion_count state do
+    parse_count state.motion_count
+  end
+
+  # Left
+  defp motion state, "h" do
+    {pre, _post} = typing_split state
+    line = pre
+      |> String.split(@newline)
+      |> List.last
+    diff = min(String.length(line), motion_count(state))
+    state.typing_pos - diff
+  end
+
+  # Right
+  defp motion state, "l" do
+    {_pre, post} = typing_split state
+    line = post
+      |> String.split(@newline)
+      |> hd
+    diff = min(String.length(line), motion_count(state))
+    state.typing_pos + diff
+  end
+
+  # Up
+  defp motion state, "k" do
+    {pre, _post} = typing_split state
+    lines = String.split(pre, @newline)
+    if 1 == length lines do
+      state.typing_pos
+    else
+      [above | current] = Enum.slice lines, -2..-1
+      current_len = String.length current
+      above_len = String.length above
+      state.typing_pos
+        - current_len
+        - above_len
+        + min(above_len, state.typing_col)
+    end
+  end
+
+  # Down
+  defp motion state, "j" do
+    {_pre, post} = typing_split state
+    lines = String.split(post, @newline)
+    if 1 == length lines do
+      state.typing_pos
+    else
+      [current | below] = Enum.slice lines, 0..1
+      current_len = String.length current
+      below_len = String.length below
+      state.typing_pos
+        + current_len
+        + min(below_len, state.typing_col)
+    end
+  end
   
   defp motion state, :line_start do
     0  # TODO: Jump to beginning of current line, before first non-whitespace
@@ -490,6 +558,26 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Normal mode
+  @motions ~w(h l)
+  def handle_input(:normal, c, state) when c in @motions do
+    state = %{state | typing_col: 0}
+    draw_commandline %{state | typing_pos: motion(state, c)}
+  end
+
+  defp typing_col state do
+    {pre, _post} = typing_split state
+    pre
+      |> String.split(@newline)
+      |> List.last
+      |> String.length
+  end
+
+  @vmotions ~w(j k)
+  def handle_input(:normal, c, state) when c in @vmotions do
+    state = %{state | typing_col: max(state.typing_col, typing_col(state))}
+    draw_commandline %{state | typing_pos: motion(state, c)}
+  end
+
   def handle_input(:normal, "0", %State{command_count: ""} = state) do
     execute(state, 0)
   end
