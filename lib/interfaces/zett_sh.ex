@@ -10,6 +10,7 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
     mode: :normal,  # overall mode
     command: nil,  # currently prepared normal-mode command
     command_count: "",  # repeats for normal-mode commands
+    motion: nil,
     motion_count: ""
   ]
 end
@@ -249,7 +250,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp status(%State{mode: :normal} = state) do
-    "#{state.command}#{state.command_count}"
+    "#{state.command_count}#{state.command}#{state.motion_count}#{state.motion}"
   end
 
   defp status(%State{mode: :insert} = state) do
@@ -423,7 +424,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def typing_split state do
-    String.split_at state.typing, state.typing_pos
+    state
+      |> typing_line()
+      |> String.split_at(state.typing_pos)
   end
 
   defp set_mode state, mode do
@@ -480,16 +483,29 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> String.length
   end
 
-  # Left
-  defp motion(state, "h") do
+  defp compound_motion(state, [m]) do
+    motion(state, m)
+  end
+
+  defp compound_motion(state, [m | ms]) do
+    {row, col} = motion(state, m)
+    state = %{
+      state |
+      typing_row: row,
+      typing_col: col,
+      motion_count: ""
+    }
+    compound_motion(state, ms)
+  end
+
+  defp motion(state, "h") do  # Left
     cols = typing_cols(state)
     count = motion_count(state)
     col = max(0, min(cols, state.typing_col) - count)
     {state.typing_row, col}
   end
 
-  # Right
-  defp motion(state, "l") do
+  defp motion(state, "l") do  # Right
     cols = typing_cols(state)
     count = motion_count(state)
     col =
@@ -501,23 +517,65 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {state.typing_row, col}
   end
 
-  # Up
-  defp motion state, "k" do
+  defp motion(state, "k") do  # Up
     count = motion_count(state)
     row = max(0, state.typing_row - count)
     {row, state.typing_col}
   end
 
-  # Down
-  defp motion state, "j" do
+  defp motion(state, "j") do  # Down
     count = motion_count(state)
     rows = length(state.typing)
     row = min(rows - 1, state.typing_row + count)
     {row, state.typing_col}
   end
 
+  defp motion(state, c) when c in ~w(+ \r) do  # Next line
+    compound_motion(state, ~w(j ^))
+  end
+
+  defp motion(state, "-") do  # Previous line
+    compound_motion(state, ~w(k ^))
+  end
+
+  defp motion(state, "_") do  # Next line, 0-based
+    count = motion_count(state)
+    state = %{state | motion_count: to_string(count - 1)}
+    compound_motion(state, ~w(k ^))
+  end
+
+  defp motion(%State{motion_count: ""} = state, "G") do  # Jump to bottom
+    {length(state.typing) - 1, state.typing_col}
+  end
+
+  defp motion(state, g) when g in ~w(G gg) do  # Jump to row
+    row = state
+      |> motion_count()
+      |> min(length(state.typing))
+    {row - 1, state.typing_col}
+  end
+
+  defp motion(state, "0") do  # Beginning of line
+    {state.typing_row, 0}
+  end
+
+  defp motion(state, "^") do  # First non-whitespace
+    line = typing_line(state)
+    [indent | _] = String.split(line, ~r(\w), parts: 2)
+    {state.typing_row, String.length(indent)}
+  end
+
+  defp motion(state, "$") do  # End of line
+    {state.typing_row, typing_cols(state) - 1}
+  end
+
   defp reset_command state do
-    %{state | command: nil, command_count: ""}
+    %{ state |
+      command: nil,
+      command_count: "",
+      motion: nil,
+      motion_count: ""
+    }
   end
 
   # Mode transitions
@@ -559,25 +617,35 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def execute(%State{command: nil} = state, to_pos) do
     set_typing_pos(state, to_pos)
+      |> reset_command()
       |> draw_statusbar()
   end
 
   # Normal mode
-  @motions ~w(h j k l ^ $)
+  def handle_input(:normal, "g", %{motion: nil} = state) do
+    draw_statusbar %{state | motion: "g"}
+  end
+
+  @gmotions ~w(g)
+  def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
+    execute(state, motion(state, "g" <> c))
+  end
+
+  @motions ~w(h j k l ^ $ + - \r _ G)
   def handle_input(:normal, c, state) when c in @motions do
     execute(state, motion(state, c))
   end
 
-  def handle_input(:normal, "0", %State{command_count: ""} = state) do
+  def handle_input(:normal, "0", %State{motion_count: ""} = state) do
     execute(state, motion(state, "0"))
   end
 
   def handle_input(:normal, n, state) when n in ~w(0 1 2 3 4 5 6 7 8 9) do
-    draw_statusbar %{state | command_count: state.command_count <> n}
+    draw_statusbar %{state | motion_count: state.motion_count <> n}
   end
 
   # Insert mode
-  def handle_input _mode, "\d", state do  # Backspace
+  def handle_input(_mode, "\d", state) do  # Backspace
     {pre, post} = typing_split state
     pre = String.slice(pre, 0..-2)
     draw_commandline %{
@@ -587,7 +655,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     }
   end
 
-  def handle_input _mode, "\r", state do  # Return
+  def handle_input(:insert, "\r", state) do  # Return
     cmd = state.typing
     parse_input cmd
     %{
