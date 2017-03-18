@@ -74,4 +74,18 @@ defmodule ZettKjett.Utils do
       :erlang.unique_integer([:monotonic]),
       :erlang.time_offset }
   end
+
+  def index(str, substr, n \\ 1) do
+    matches = String.split(str, substr, parts: 1 + n)
+    if length(matches) < 1 + n do
+      {:error, :not_found}
+    else
+      index = matches
+        |> Enum.slice(0..-2)
+        |> Enum.map(&String.length/1)
+        |> Enum.sum()
+        |> Kernel.+(n * String.length(substr))
+      {:ok, index}
+    end
+  end
 end

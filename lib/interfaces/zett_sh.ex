@@ -275,7 +275,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def history_height state do
-    state.rows - 2  # Leave room for command line and status
+    # Leave room for command line and status
+    state.rows - command_height(state) + 1
   end
 
   def history_width state do
@@ -357,7 +358,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> Enum.chunk(2, 1)
       |> Enum.flat_map(&history_item(&1, state))
       |> Enum.take(-height)
-      |> Utils.pad_leading(height, String.duplicate(" ", width))
       |> Enum.join(@newline <> Ctrl.right(@chat_x))
     str =
       Ctrl.save_cursor() <>
@@ -421,7 +421,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       && tell_friend(friend, message)
   end
 
-  def typing_split state do
+  def typing_split(state) do
     state
       |> typing_line()
       |> String.split_at(state.typing_col)
@@ -691,20 +691,25 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Find char
   defp motion(state, "f", c) do
-    count = motion_count(state) + 1
-    {_pre, line} = state
-      |> typing_line()
-      |> String.split_at(state.typing_col + 1)
-    matches = String.split(line, c)
-    if length(matches) < 1 + count do  # No match
-      {state.typing_row, state.typing_col}
-    else
-      index = matches
-        |> Enum.slice(0, count - 1)
-        |> Enum.map(&String.length/1)
-        |> Enum.sum()
-        |> Kernel.+(count)
-      {state.typing_row, state.typing_col + index - 1}
+    count = motion_count(state)
+    {_pre, post} = typing_split(state)
+    case post |> String.slice(1..-1) |> Utils.index(c, count) do
+      {:error, _reason} ->
+        {state.typing_row, state.typing_col}
+      {:ok, index} ->
+        {state.typing_row, state.typing_col + index}
+    end
+  end
+
+  # Find char backwards
+  defp motion(state, "F", c) do
+    count = motion_count(state)
+    {pre, _post} = typing_split(state)
+    case pre |> String.reverse |> Utils.index(c, count) do
+      {:error, _reason} ->
+        {state.typing_row, state.typing_col}
+      {:ok, index} ->
+        {state.typing_row, state.typing_col - index}
     end
   end
 
@@ -718,11 +723,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Normal mode
-  def handle_input(:normal, c, %State{motion: "f"} = state) do
-    execute(state, motion(state, "f", c))
+  def handle_input(:normal, c, %State{motion: m} = state) when m in ~w(f F) do
+    execute(state, motion(state, state.motion, c))
   end
 
-  @premotions ~w(g f)
+  @premotions ~w(g f F)
   def handle_input(:normal, c, %{motion: nil} = state) when c in @premotions do
     draw_statusbar(%{state | motion: c})
   end
@@ -794,11 +799,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
     }
   end
 
-  def handle_input mode, c, state do
-    Utils.inspect c
-    state
-  end
-
   # Mode transitions
   def handle_input _mode, "\e", state do  # Escape
     set_mode(state, :normal)
@@ -836,6 +836,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
     set_typing_pos(state, to_pos)
       |> reset_command()
       |> draw_statusbar()
+  end
+
+  def handle_input mode, c, state do
+    Utils.inspect c
+    state
   end
 
 end
