@@ -424,7 +424,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def typing_split state do
     state
       |> typing_line()
-      |> String.split_at(state.typing_pos)
+      |> String.split_at(state.typing_col)
   end
 
   defp set_mode state, mode do
@@ -689,6 +689,25 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp motion(state, "|"),
     do: {state.typing_row, motion_count(state)}
 
+  # Find char
+  defp motion(state, "f", c) do
+    count = motion_count(state) + 1
+    {_pre, line} = state
+      |> typing_line()
+      |> String.split_at(state.typing_col + 1)
+    matches = String.split(line, c)
+    if length(matches) < 1 + count do  # No match
+      {state.typing_row, state.typing_col}
+    else
+      index = matches
+        |> Enum.slice(0, count - 1)
+        |> Enum.map(&String.length/1)
+        |> Enum.sum()
+        |> Kernel.+(count)
+      {state.typing_row, state.typing_col + index - 1}
+    end
+  end
+
   defp reset_command state do
     %{ state |
       command: nil,
@@ -696,6 +715,88 @@ defmodule ZettKjett.Interfaces.ZettSH do
       motion: nil,
       motion_count: ""
     }
+  end
+
+  # Normal mode
+  def handle_input(:normal, c, %State{motion: "f"} = state) do
+    execute(state, motion(state, "f", c))
+  end
+
+  @premotions ~w(g f)
+  def handle_input(:normal, c, %{motion: nil} = state) when c in @premotions do
+    draw_statusbar(%{state | motion: c})
+  end
+
+  @gmotions ~w(g j h m _ 0 ^ $)
+  def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
+    execute(state, motion(state, "g" <> c))
+  end
+
+  @motions ~w(h j k l ^ $ + - \r _ G |)
+  def handle_input(:normal, c, state) when c in @motions do
+    execute(state, motion(state, c))
+  end
+
+  def handle_input(:normal, "0", %State{motion_count: ""} = state) do
+    execute(state, motion(state, "0"))
+  end
+
+  def handle_input(:normal, n, state) when n in ~w(0 1 2 3 4 5 6 7 8 9) do
+    draw_statusbar(%{state | motion_count: state.motion_count <> n})
+  end
+
+  # Insert mode
+  def handle_input(_mode, "\d", state) do  # Backspace
+    {pre, post} = typing_split(state)
+    pre = String.slice(pre, 0..-2)
+    draw_commandline %{
+      state |
+      typing: pre <> post,
+      typing_pos: String.length(pre)
+    }
+  end
+
+  def handle_input(:insert, "\r", state) do  # Return
+    cmd = state.typing
+    parse_input cmd
+    %{
+      state |
+      typing: "",
+      typing_pos: 0
+    }
+  end
+
+  def handle_input mode, "\e[A", state do  # Up arrow
+    # TODO previous in command history
+    state
+  end
+
+  def handle_input mode, "\e[B", state do  # Down arrow
+    # TODO next in command history
+    state
+  end
+
+  def handle_input mode, "\e[C", state do  # Right arrow
+    set_typing_pos(state, state.typing_pos + 1)
+  end
+
+  def handle_input mode, "\e[D", state do  # Left arrow
+    set_typing_pos(state, state.typing_pos - 1)
+  end
+
+  def handle_input :insert, c, state do
+    {pre, post} = typing_split(state)
+    str = pre <> c <> post
+    draw_commandline %{
+      state |
+      typing: str,
+      typing_pos: state.typing_pos + 1
+    }
+  end
+
+  def handle_input mode, c, state do
+    Utils.inspect c
+    state
   end
 
   # Mode transitions
@@ -737,82 +838,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> draw_statusbar()
   end
 
-  # Normal mode
-  def handle_input(:normal, "g", %{motion: nil} = state) do
-    draw_statusbar %{state | motion: "g"}
-  end
-
-  @gmotions ~w(g j h m _ 0 ^ $)
-  def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
-    execute(state, motion(state, "g" <> c))
-  end
-
-  @motions ~w(h j k l ^ $ + - \r _ G |)
-  def handle_input(:normal, c, state) when c in @motions do
-    execute(state, motion(state, c))
-  end
-
-  def handle_input(:normal, "0", %State{motion_count: ""} = state) do
-    execute(state, motion(state, "0"))
-  end
-
-  def handle_input(:normal, n, state) when n in ~w(0 1 2 3 4 5 6 7 8 9) do
-    draw_statusbar %{state | motion_count: state.motion_count <> n}
-  end
-
-  # Insert mode
-  def handle_input(_mode, "\d", state) do  # Backspace
-    {pre, post} = typing_split state
-    pre = String.slice(pre, 0..-2)
-    draw_commandline %{
-      state |
-      typing: pre <> post,
-      typing_pos: String.length(pre)
-    }
-  end
-
-  def handle_input(:insert, "\r", state) do  # Return
-    cmd = state.typing
-    parse_input cmd
-    %{
-      state |
-      typing: "",
-      typing_pos: 0
-    }
-  end
-
-  def handle_input mode, "\e[A", state do  # Up arrow
-    # TODO previous in command history
-    state
-  end
-
-  def handle_input mode, "\e[B", state do  # Down arrow
-    # TODO next in command history
-    state
-  end
-
-  def handle_input mode, "\e[C", state do  # Right arrow
-    set_typing_pos(state, state.typing_pos + 1)
-  end
-
-  def handle_input mode, "\e[D", state do  # Left arrow
-    set_typing_pos(state, state.typing_pos - 1)
-  end
-
-  def handle_input :insert, c, state do
-    {pre, post} = typing_split state
-    str = pre <> c <> post
-    draw_commandline %{
-      state |
-      typing: str,
-      typing_pos: state.typing_pos + 1
-    }
-  end
-
-  def handle_input mode, c, state do
-    Utils.inspect c
-    state
-  end
 end
 
 defmodule ZettKjett.Interfaces.ZettSH.Ctrl do
