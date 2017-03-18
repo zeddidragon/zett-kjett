@@ -31,6 +31,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     And it was awesome
           Maybe
     I hope
+    Additionally, this is a line that is so long it will hopefully stretch across multiple lines and teach me to do stuff that involves multiple lines but I guess we'll just have to see about that maybe let's copy-paste it for good measure while we're at it -- Additionally, this is a line that is so long it will hopefully stretch across multiple lines and teach me to do stuff that involves multiple lines but I guess we'll just have to see about that maybe let's copy-paste it for good measure while we're at it
       Tessst
   "
 
@@ -373,6 +374,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     row = start + state.typing_row
     col = min(state.typing_col, typing_cols(state))
     content = state.typing
+      |> Enum.flat_map(&cut_string(&1, state.cols))
       |> Enum.map(&String.pad_trailing(&1, state.cols, " "))
       |> Enum.join(@newline)
     str =
@@ -445,8 +447,24 @@ defmodule ZettKjett.Interfaces.ZettSH do
     }
   end
 
+  defp wrapped_width state, line do
+    line
+      |> String.length
+      |> div(state.cols)
+      |> Kernel.+(1)
+  end
+
+  defp command_height(state, range) do
+    command_height(%{state | typing: Enum.slice(state.typing, 0, range)})
+  end
+  defp command_height state do
+    state.typing
+      |> Enum.map(&wrapped_width(state, &1))
+      |> Enum.sum()
+  end
+
   defp command_row state do
-    state.rows - length(state.typing) + 1
+    state.rows - command_height(state) + 1
   end
 
   defp set_typing_pos state, {row, col} do
@@ -454,8 +472,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
       typing_row: row,
       typing_col: col
     }
-    Ctrl.move(command_row(state) + row, min(col, typing_cols(state)) + 1)
-      |> IO.write
+    col = min(col, typing_cols(state) - 1)
+    row = command_height(state, row) + div(col, state.cols)
+    Ctrl.move(command_row(state) + row, rem(col, state.cols) + 1) |> IO.write
     state
   end
 
@@ -472,9 +491,10 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp typing_cols state do
-    state
+    len = state
       |> typing_line()
       |> String.length
+    if state.mode == :insert do len + 1 else len end
   end
 
   defp compound_motion(state, ms, offset),
@@ -495,7 +515,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp motion(state, "h") do  # Left
     cols = typing_cols(state)
     count = motion_count(state)
-    col = max(0, min(cols, state.typing_col) - count)
+    col = max(0, min(cols - 1, state.typing_col) - count)
     {state.typing_row, col}
   end
 
@@ -506,7 +526,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       if cols < state.typing_col do
         state.typing_col
       else
-        min(cols, state.typing_col + count)
+        min(cols - 1, state.typing_col + count)
       end
     {state.typing_row, col}
   end
@@ -532,10 +552,10 @@ defmodule ZettKjett.Interfaces.ZettSH do
     compound_motion(state, ~w(k ^))
   end
 
-  defp motion(state, "_") do  # Next line, 0-based
+  defp motion(state, "_") do  # Down to first non-blank
     count = motion_count(state)
     state = %{state | motion_count: to_string(count - 1)}
-    compound_motion(state, ~w(k ^))
+    compound_motion(state, ~w(j ^))
   end
 
   defp motion(%State{motion_count: ""} = state, "G") do  # Jump to bottom
@@ -595,35 +615,31 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Mode transitions
   def handle_input _mode, "\e", state do  # Escape
-    set_mode state, :normal
+    set_mode(state, :normal)
   end
 
   def handle_input :normal, "i", state do
-    set_mode state, :insert
+    set_mode(state, :insert)
   end
 
   def handle_input :normal, "a", state do
-    state
-      |> set_mode(:insert)
-      |> set_typing_pos(motion(state, "l"))
+    state = set_mode(state, :insert)
+    set_typing_pos(state, motion(state, "l"))
   end
 
   def handle_input :normal, "I", state do
-    state
-      |> set_mode(:insert)
-      |> set_typing_pos(motion(state, "^"))
+    state = set_mode(state, :insert)
+    set_typing_pos(state, motion(state, "^"))
   end
 
   def handle_input :normal, "A", state do
-    state
-      |> set_mode(:insert)
-      |> set_typing_pos(motion(state, "$"))
+    state = set_mode(state, :insert)
+    set_typing_pos(state, motion(state, "$"))
   end
 
   def handle_input :normal, ":", state do
-    state
-      |> set_mode(:insert)
-      |> set_typing(":")
+    state = set_mode(state, :insert)
+    set_typing(state, ":")
   end
 
   def handle_input _mode, <<18>>, state do  # C-r
