@@ -464,6 +464,15 @@ defmodule ZettKjett.Interfaces.ZettSH do
     state.rows - command_height(state) + 1
   end
 
+  defp restrict(state, {row, col}) do
+    row = min(row, length(state.typing) - 1)
+    col = state
+      |> typing_cols(row)
+      |> min(col)
+      |> max(0)
+    {row, col}
+  end
+
   defp set_typing_pos state, {row, col} do
     state = %{ state |
       typing_row: row,
@@ -489,9 +498,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
     Enum.at state.typing, row
   end
 
-  defp typing_cols(state) do
+  defp typing_cols(state, row \\ nil) do
     len = state
-      |> typing_line()
+      |> typing_line(row || state.typing_row)
       |> String.length
     if state.mode == :insert do len + 1 else len end
   end
@@ -506,7 +515,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp y_to_row(state, [line], targety, y, row), do: row
   defp y_to_row(state, [line | lines], targety, y, row) do
     next_y = line
-      |> length()
+      |> String.length()
       |> div(state.cols)
       |> Kernel.+(y + 1)
     if next_y > targety do
@@ -634,13 +643,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
     do: compound_motion(state, ~w(j $), -1)
 
   # Down to end of screen
-  defp motion(%State{motion_count: ""} = state, "g$") do
-    max_cols = typing_cols(state)
-    screen = div(state.typing_col, state.cols)
-    {state.typing_row, min((screen + 1) * state.cols, max_cols) - 1}
+  defp motion(state, "g$") do
+    count = motion_count(state)
+    {y, x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    pos = screen_to_pos(state, {y + count - 1, state.cols - 1})
+    restrict(state, pos)
   end
-  defp motion(state, "g$"),
-    do: compound_motion(state, ~w(j g$), -1)
 
   # Down to last non-blank
   defp motion(%State{motion_count: ""} = state, "g_") do
