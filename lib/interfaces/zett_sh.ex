@@ -53,9 +53,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
     Task.start_link fn ->
       Port.open({:spawn, "tty_sl -c -e"}, [:binary, :eof])
-      IO.write ANSI.clear
       state = redraw state
-      IO.write Ctrl.move(state.rows, 0)
       message_loop state
     end
   end
@@ -380,10 +378,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
     str =
       Ctrl.move(start, 0) <>
       ANSI.clear_line <>
-      content <>
-      Ctrl.move(row, col + 1)
+      content
     IO.write str
-    state
+    set_typing_pos(state, {state.typing_row, state.typing_col})
   end
 
   def redraw state do
@@ -512,14 +509,16 @@ defmodule ZettKjett.Interfaces.ZettSH do
     compound_motion(state, ms)
   end
 
-  defp motion(state, "h") do  # Left
+  # Left
+  defp motion(state, "h") do
     cols = typing_cols(state)
     count = motion_count(state)
     col = max(0, min(cols - 1, state.typing_col) - count)
     {state.typing_row, col}
   end
 
-  defp motion(state, "l") do  # Right
+  # Right
+  defp motion(state, "l") do
     cols = typing_cols(state)
     count = motion_count(state)
     col =
@@ -531,64 +530,91 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {state.typing_row, col}
   end
 
-  defp motion(state, "k") do  # Up
+  # Up
+  defp motion(state, "k") do
     count = motion_count(state)
     row = max(0, state.typing_row - count)
     {row, state.typing_col}
   end
 
-  defp motion(state, "j") do  # Down
+  # Down
+  defp motion(state, "j") do
     count = motion_count(state)
     rows = length(state.typing)
     row = min(rows - 1, state.typing_row + count)
     {row, state.typing_col}
   end
 
-  defp motion(state, c) when c in ~w(+ \r) do  # Next line
+  # Next line
+  defp motion(state, c) when c in ~w(+ \r) do
     compound_motion(state, ~w(j ^))
   end
 
-  defp motion(state, "-") do  # Previous line
+  # Previous line
+  defp motion(state, "-") do
     compound_motion(state, ~w(k ^))
   end
 
-  defp motion(state, "_") do  # Down to first non-blank
+  # Down to first non-blank
+  defp motion(state, "_") do
     count = motion_count(state)
     state = %{state | motion_count: to_string(count - 1)}
     compound_motion(state, ~w(j ^))
   end
 
-  defp motion(%State{motion_count: ""} = state, "G") do  # Jump to bottom
+  # Jump to bottom
+  defp motion(%State{motion_count: ""} = state, "G") do
     {length(state.typing) - 1, state.typing_col}
   end
 
-  defp motion(state, g) when g in ~w(G gg) do  # Jump to row
+  # Jump to row
+  defp motion(state, g) when g in ~w(G gg) do
     row = state
       |> motion_count()
       |> min(length(state.typing))
     {row - 1, state.typing_col}
   end
 
-  defp motion(state, "0") do  # Beginning of line
+  # Beginning of line
+  defp motion(state, "0") do
     {state.typing_row, 0}
   end
 
-  defp motion(state, "^") do  # First non-blank
+  # Beginning of screen-line
+  defp motion(state, "g0") do
+    screen = div(state.typing_col, state.cols)
+    {state.typing_row, screen * state.cols}
+  end
+
+  # First non-blank
+  defp motion(state, "^") do
     line = typing_line(state)
     [indent | _] = line
       |> String.split(~r/\w/, parts: 2)
     {state.typing_row, String.length(indent)}
   end
 
-  defp motion(state, "_"),  # Down to first non-blank
+  # Down to first non-blank
+  defp motion(state, "_"),
     do: compound_motion(state, ~w(j, ^), -1)
 
-  defp motion(%State{motion_count: ""} = state, "$"),  # Down to end of line
+  # Down to end of line
+  defp motion(%State{motion_count: ""} = state, "$"),
     do: {state.typing_row, typing_cols(state) - 1}
   defp motion(state, "$"),
     do: compound_motion(state, ~w(j $), -1)
 
-  defp motion(%State{motion_count: ""} = state, "g_") do  # Down to last non-blank
+  # Down to end of screen
+  defp motion(%State{motion_count: ""} = state, "g$") do
+    max_cols = typing_cols(state)
+    screen = div(state.typing_col, state.cols)
+    {state.typing_row, min((screen + 1) * state.cols, max_cols) - 1}
+  end
+  defp motion(state, "g$"),
+    do: compound_motion(state, ~w(j g$), -1)
+
+  # Down to last non-blank
+  defp motion(%State{motion_count: ""} = state, "g_") do
     line = typing_line(state)
     [trailing | _] = line
       |> String.reverse
@@ -598,10 +624,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp motion(state, "g_"),
     do: compound_motion(state, ~w(j g_), -1)
 
-  defp motion(state, "gm"),  # Middle of row
+  # Middle of row
+  defp motion(state, "gm"),
     do: {state.typing_row, div(state.cols, 2)}
 
-  defp motion(state, "|"),  # Jump to column
+  # Jump to column
+  defp motion(state, "|"),
     do: {state.typing_row, motion_count(state)}
 
   defp reset_command state do
@@ -657,7 +685,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_statusbar %{state | motion: "g"}
   end
 
-  @gmotions ~w(g m _)
+  @gmotions ~w(g j h m _ 0 ^ $)
   def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
     execute(state, motion(state, "g" <> c))
   end
