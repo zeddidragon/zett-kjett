@@ -1,17 +1,18 @@
 defmodule ZettKjett.Interfaces.ZettSH.State do
   defstruct [
-    rows: 1,  # terminal height
-    cols: 1,  # terminal width
-    expanded: %{},  # which items in the tree are expanded
-    system_messages: [],  # messages from ZettSH to show in chat history
-    typing: [""],  # currently typed message
-    typing_row: 0,  # cursor row in command line
-    typing_col: 0,  # cursor column in command line
-    mode: :normal,  # overall mode
-    command: nil,  # currently prepared normal-mode command
-    command_count: "",  # repeats for normal-mode commands
-    motion: nil,
-    motion_count: ""
+    rows: 1,  # Terminal height
+    cols: 1,  # Terminal width
+    expanded: %{},  # Which items in the tree are expanded
+    system_messages: [],  # Messages from ZettSH to show in chat history
+    typing: [""],  # Currently typed message
+    typing_row: 0,  # Cursor row in command line
+    typing_col: 0,  # Cursor column in command line
+    mode: :normal,  # Overall mode
+    command: nil,  # Currently prepared normal-mode command
+    command_count: "",  # Repeats for normal-mode commands
+    motion: nil, # Currently prepared motion
+    motion_count: "", # Repeats for motion
+    last_find: nil
   ]
 end
 
@@ -735,6 +736,29 @@ defmodule ZettKjett.Interfaces.ZettSH do
     end
   end
 
+  # Repeat last find when no last find exists
+  defp motion(%State{last_find: nil} = state, m) when m in ~w(; ,),
+    do: {state.typing_row, state.typing_col}
+
+  # Repeat last find
+  defp motion(state, ";") do
+    {m, c} = state.last_find
+    motion(state, m, c)
+  end
+
+  # Repeat last find backwards
+  defp motion(state, ",") do
+    {m, c} = state.last_find
+    m =
+      case m do
+        "f" -> "F"
+        "F" -> "f"
+        "t" -> "T"
+        "T" -> "t"
+      end
+    motion(state, m, c)
+  end
+
 
   defp reset_command state do
     %{ state |
@@ -746,8 +770,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Normal mode
-  @search ~w(f F t T)
-  def handle_input(:normal, c, %State{motion: m} = state) when m in @search do
+  @find ~w(f F t T)
+  def handle_input(:normal, c, %State{motion: m} = state) when m in @find do
+    state = %{state | last_find: {m, c}}
     execute(state, motion(state, state.motion, c))
   end
 
@@ -761,7 +786,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     execute(state, motion(state, "g" <> c))
   end
 
-  @motions ~w(h j k l ^ $ + - \r _ G |)
+  @motions ~w(h j k l ^ $ + - \r _ G | ; ,)
   def handle_input(:normal, c, state) when c in @motions do
     execute(state, motion(state, c))
   end
