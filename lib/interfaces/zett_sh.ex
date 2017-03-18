@@ -553,16 +553,36 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {state.typing_row, 0}
   end
 
-  defp motion(state, "^") do  # First non-whitespace
+  defp motion(state, "^") do  # First non-blank
     line = typing_line(state)
-    [indent | _] = String.split(line, ~r(\w), parts: 2)
+    [indent | _] = line
+      |> String.split(~r/\w/, parts: 2)
     {state.typing_row, String.length(indent)}
   end
 
-  defp motion(%State{motion_count: ""} = state, "$"),  # End of line
+  defp motion(state, "_"),  # Down to first non-blank
+    do: compound_motion(state, ~w(j, ^), -1)
+
+  defp motion(%State{motion_count: ""} = state, "$"),  # Down to end of line
     do: {state.typing_row, typing_cols(state) - 1}
   defp motion(state, "$"),
     do: compound_motion(state, ~w(j $), -1)
+
+  defp motion(%State{motion_count: ""} = state, "g_") do  # Down to last non-blank
+    line = typing_line(state)
+    [trailing | _] = line
+      |> String.reverse
+      |> String.split(~r/\w/, parts: 2)
+    {state.typing_row, String.length(line) - String.length(trailing)}
+  end
+  defp motion(state, "g_"),
+    do: compound_motion(state, ~w(j g_), -1)
+
+  defp motion(state, "gm"),  # Middle of row
+    do: {state.typing_row, div(state.cols, 2)}
+
+  defp motion(state, "|"),  # Jump to column
+    do: {state.typing_row, motion_count(state)}
 
   defp reset_command state do
     %{ state |
@@ -621,12 +641,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_statusbar %{state | motion: "g"}
   end
 
-  @gmotions ~w(g)
+  @gmotions ~w(g m _)
   def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
     execute(state, motion(state, "g" <> c))
   end
 
-  @motions ~w(h j k l ^ $ + - \r _ G)
+  @motions ~w(h j k l ^ $ + - \r _ G |)
   def handle_input(:normal, c, state) when c in @motions do
     execute(state, motion(state, c))
   end
