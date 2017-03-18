@@ -164,14 +164,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp run_command "tell", _ do
     error ~s(Usage: ":tell <friend> [<message>]")
   end
-
   defp run_command "nick", [] do
     error ~s("Usage: ":nick <new name>")
   end
   defp run_command "nick", args do
     nick Enum.join(args, " ")
   end
-
   defp run_command unknown, _ do
     error "Unknown function: :" <> unknown
   end
@@ -461,13 +459,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
     state
   end
 
-  defp parse_count str do
-    if str == "" do
-      1
-    else
-      Utils.parse_int(str)
-    end
-  end
+  defp parse_count(n) when is_number(n), do: n
+  defp parse_count("" = str), do: 1
+  defp parse_count(str), do: Utils.parse_int(str)
 
   defp motion_count state do
     parse_count state.motion_count
@@ -483,10 +477,10 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> String.length
   end
 
-  defp compound_motion(state, [m]) do
-    motion(state, m)
-  end
-
+  defp compound_motion(state, ms, offset),
+    do: compound_motion(%{state | motion_count: motion_count(state) - 1}, ms)
+  defp compound_motion(state, [m]),
+    do: motion(state, m)
   defp compound_motion(state, [m | ms]) do
     {row, col} = motion(state, m)
     state = %{
@@ -565,9 +559,10 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {state.typing_row, String.length(indent)}
   end
 
-  defp motion(state, "$") do  # End of line
-    {state.typing_row, typing_cols(state) - 1}
-  end
+  defp motion(%State{motion_count: ""} = state, "$"),  # End of line
+    do: {state.typing_row, typing_cols(state) - 1}
+  defp motion(state, "$"),
+    do: compound_motion(state, ~w(j $), -1)
 
   defp reset_command state do
     %{ state |
