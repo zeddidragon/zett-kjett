@@ -24,6 +24,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   @friends_list_width 24
   @chat_x @friends_list_width + 1
   @newline "\n\r"
+  @nonblank ~r/[^\s]/
 
   @debug_text "
     Four scores and seven years ago
@@ -622,7 +623,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp motion(state, "^") do
     line = typing_line(state)
     [indent | _] = line
-      |> String.split(~r/\w/, parts: 2)
+      |> String.split(@nonblank, parts: 2)
     {state.typing_row, String.length(indent)}
   end
 
@@ -638,17 +639,31 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Down to end of screen
   defp motion(state, "g$") do
-    count = motion_count(state)
     {y, x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    count = motion_count(state)
     pos = screen_to_pos(state, {y + count - 1, state.cols - 1})
     restrict(state, pos)
   end
 
   # Down to beginning of screen
   defp motion(state, "g0") do
-    count = motion_count(state)
     {y, x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    count = motion_count(state)
     pos = screen_to_pos(state, {y + count - 1, 0})
+    restrict(state, pos)
+  end
+
+  # First non-blenk on screen, no vertical motion
+  defp motion(state, "g^") do
+    {y, _x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    col = min(typing_cols(state) - 1, state.typing_col)
+    base_x = div(col, state.cols) * state.cols
+    {_pre, line} = state |>
+      typing_line() |>
+      String.split_at(base_x)
+    [blank | _remainder] = String.split(line, @nonblank, parts: 2)
+    x = String.length(blank)
+    pos = screen_to_pos(state, {y, x})
     restrict(state, pos)
   end
 
@@ -657,7 +672,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     line = typing_line(state)
     [trailing | _] = line
       |> String.reverse
-      |> String.split(~r/\w/, parts: 2)
+      |> String.split(@nonblank, parts: 2)
     {state.typing_row, String.length(line) - String.length(trailing)}
   end
   defp motion(state, "g_"),
