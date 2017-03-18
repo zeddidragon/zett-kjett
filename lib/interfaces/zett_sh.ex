@@ -483,15 +483,29 @@ defmodule ZettKjett.Interfaces.ZettSH do
     parse_count state.motion_count
   end
 
-  defp typing_line state do
-    Enum.at state.typing, state.typing_row
+
+  defp typing_line(state), do: typing_line(state, state.typing_row)
+  defp typing_line(state, row) do
+    Enum.at state.typing, row
   end
 
-  defp typing_cols state do
+  defp typing_cols(state) do
     len = state
       |> typing_line()
       |> String.length
     if state.mode == :insert do len + 1 else len end
+  end
+
+  defp pos_to_screen(state, {row, col}) do
+    y = command_height(state, row) + div(row, state.cols)
+    x = rem(col, state.cols)
+    {y, x}
+  end
+
+  defp y_to_row({line, lines})
+
+  defp screen_to_pos(state, {y, x}) do
+
   end
 
   defp compound_motion(state, ms, offset),
