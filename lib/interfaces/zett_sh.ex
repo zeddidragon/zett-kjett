@@ -679,8 +679,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
     do: compound_motion(state, ~w(j g_), -1)
 
   # Middle of row
-  defp motion(state, "gm"),
-    do: {state.typing_row, div(state.cols, 2)}
+  defp motion(state, "gm") do
+    {y, _x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    pos = screen_to_pos(state, {y, div(state.cols, 2)})
+    restrict(state, pos)
+  end
 
   # Jump to column
   defp motion(state, "|"),
