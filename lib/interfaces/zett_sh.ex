@@ -502,10 +502,25 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {y, x}
   end
 
-  defp y_to_row({line, lines})
+  defp y_to_row(state, lines, targety, y \\ 0, row \\ 0)
+  defp y_to_row(state, [line], targety, y, row), do: row
+  defp y_to_row(state, [line | lines], targety, y, row) do
+    next_y = line
+      |> length()
+      |> div(state.cols)
+      |> Kernel.+(y + 1)
+    if next_y > targety do
+      {row, y}
+    else
+      y_to_row(state, lines, targety, next_y, row + 1)
+    end
+  end
 
   defp screen_to_pos(state, {y, x}) do
-
+    {row, base_y} = y_to_row(state, state.typing, y)
+    diff = y - base_y
+    col = diff * state.cols + x
+    {row, col}
   end
 
   defp compound_motion(state, ms, offset),
