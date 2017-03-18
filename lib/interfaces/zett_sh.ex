@@ -507,6 +507,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
     if state.mode == :insert do len + 1 else len end
   end
 
+  defp state_pos(state), do: {state.typing_row, state.typing_col}
+  defp state_screen(state) do
+    pos = state_pos(state)
+    pos_to_screen(state, pos)
+  end
+
   defp pos_to_screen(state, {row, col}) do
     y = command_height(state, row) + div(col, state.cols)
     x = rem(col, state.cols)
@@ -514,7 +520,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp y_to_row(state, lines, targety, y \\ 0, row \\ 0)
-  defp y_to_row(state, [line], targety, y, row), do: row
+  defp y_to_row(state, [line], targety, y, row), do: {row, y}
   defp y_to_row(state, [line | lines], targety, y, row) do
     next_y = line
       |> String.length()
@@ -585,6 +591,20 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {row, state.typing_col}
   end
 
+  # Up screen line
+  defp motion(state, "gk") do
+    count = motion_count(state)
+    {y, x} = state_screen(state)
+    screen_to_pos(state, {y - count, x})
+  end
+
+  # Down screen line
+  defp motion(state, "gj") do
+    count = motion_count(state)
+    {y, x} = state_screen(state)
+    screen_to_pos(state, {y + count, x})
+  end
+
   # Next line
   defp motion(state, c) when c in ~w(+ \r) do
     compound_motion(state, ~w(j ^))
@@ -640,7 +660,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Down to end of screen
   defp motion(state, "g$") do
-    {y, x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    {y, x} = state_screen(state)
     count = motion_count(state)
     pos = screen_to_pos(state, {y + count - 1, state.cols - 1})
     restrict(state, pos)
@@ -648,7 +668,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Down to beginning of screen
   defp motion(state, "g0") do
-    {y, x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    {y, x} = state_screen(state)
     count = motion_count(state)
     pos = screen_to_pos(state, {y + count - 1, 0})
     restrict(state, pos)
@@ -656,7 +676,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # First non-blenk on screen, no vertical motion
   defp motion(state, "g^") do
-    {y, _x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    {y, x} = state_screen(state)
     col = min(typing_cols(state) - 1, state.typing_col)
     base_x = div(col, state.cols) * state.cols
     {_pre, line} = state |>
@@ -681,7 +701,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Middle of row
   defp motion(state, "gm") do
-    {y, _x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    {y, _x} = state_screen(state)
     pos = screen_to_pos(state, {y, div(state.cols, 2)})
     restrict(state, pos)
   end
@@ -781,7 +801,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_statusbar(%{state | motion: c})
   end
 
-  @gmotions ~w(g j h m _ 0 ^ $)
+  @gmotions ~w(g j k h m _ 0 ^ $)
   def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
     execute(state, motion(state, "g" <> c))
   end
