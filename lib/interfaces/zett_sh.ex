@@ -713,6 +713,29 @@ defmodule ZettKjett.Interfaces.ZettSH do
     end
   end
 
+  # Till char
+  defp motion(state, "t", c) do
+    col = state.typing_col
+    case motion(state, "f", c) do
+      {_, ^col} ->  # No match
+        {state.typing_row, state.typing_col}
+      {_, col} ->
+        {state.typing_row, col - 1}
+    end
+  end
+
+  # Till char backwards
+  defp motion(state, "T", c) do
+    col = state.typing_col
+    case motion(state, "F", c) do
+      {_, ^col} ->  # No match
+        {state.typing_row, state.typing_col}
+      {_, col} ->
+        {state.typing_row, col + 1}
+    end
+  end
+
+
   defp reset_command state do
     %{ state |
       command: nil,
@@ -723,11 +746,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Normal mode
-  def handle_input(:normal, c, %State{motion: m} = state) when m in ~w(f F) do
+  @search ~w(f F t T)
+  def handle_input(:normal, c, %State{motion: m} = state) when m in @search do
     execute(state, motion(state, state.motion, c))
   end
 
-  @premotions ~w(g f F)
+  @premotions ~w(g f F t T)
   def handle_input(:normal, c, %{motion: nil} = state) when c in @premotions do
     draw_statusbar(%{state | motion: c})
   end
