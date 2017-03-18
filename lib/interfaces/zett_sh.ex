@@ -506,7 +506,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp pos_to_screen(state, {row, col}) do
-    y = command_height(state, row) + div(row, state.cols)
+    y = command_height(state, row) + div(col, state.cols)
     x = rem(col, state.cols)
     {y, x}
   end
@@ -618,12 +618,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {state.typing_row, 0}
   end
 
-  # Beginning of screen-line
-  defp motion(state, "g0") do
-    screen = div(state.typing_col, state.cols)
-    {state.typing_row, screen * state.cols}
-  end
-
   # First non-blank
   defp motion(state, "^") do
     line = typing_line(state)
@@ -647,6 +641,14 @@ defmodule ZettKjett.Interfaces.ZettSH do
     count = motion_count(state)
     {y, x} = pos_to_screen(state, {state.typing_row, state.typing_col})
     pos = screen_to_pos(state, {y + count - 1, state.cols - 1})
+    restrict(state, pos)
+  end
+
+  # Down to beginning of screen
+  defp motion(state, "g0") do
+    count = motion_count(state)
+    {y, x} = pos_to_screen(state, {state.typing_row, state.typing_col})
+    pos = screen_to_pos(state, {y + count - 1, 0})
     restrict(state, pos)
   end
 
