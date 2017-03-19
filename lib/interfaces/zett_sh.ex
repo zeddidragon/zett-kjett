@@ -814,12 +814,29 @@ defmodule ZettKjett.Interfaces.ZettSH do
     motion(state, m, c)
   end
 
-  # Beginning of next @word
-  defp motion(state, "w") do
+  # Beginning of next word
+  defp motion(state, c) when c in ~w(w \e[1;2C) do
+    {_pre, post} = typing_split(state)
+    [current | frags] = post
+      |> String.split(@nonword, include_capture: true)
+    result = Enum.reduce_while frags, {:error, 1}, fn frag, {_, index} ->
+      if String.trim(frag) == "" do
+        {:cont, {:error, index + String.length(frag)}}
+      else
+        {:halt, {:ok, index}}
+      end
+    end
+    case result do
+      {:ok, index} ->
+        {state.typing_row, state.typing_col + index + String.length(current)}
+      {:error, _} ->
+        motion(state, "+")
+    end
   end
 
-  # Beginning of next @nonblank
-  defp motion(state, "W") do
+  # Beginning of next nonblank
+  defp motion(state, c) when c in ~w(W \eOC \e[1;5C) do
+    Utils.inspect c
   end
 
 
