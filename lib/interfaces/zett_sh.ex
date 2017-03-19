@@ -27,7 +27,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   @newline "\n\r"
   @nonblank ~r/[^\s]/
 
-  @debug_text "
+  @debug_text "first line
     Four scores and seven years ago
     I did this multiline thing to check out multiline functionality
     And it was awesome
@@ -654,7 +654,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Jump to grapheme
   defp motion(state, "go") do
-    index_to_pos(state, motion_count(state))
+    index_to_pos(state, motion_count(state) - 1)
   end
 
   # Jump to percent of lines, then first non-blank
