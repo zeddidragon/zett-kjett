@@ -1,18 +1,18 @@
 defmodule ZettKjett.Interfaces.ZettSH.State do
   defstruct [
-    rows: 1,  # Terminal height
-    cols: 1,  # Terminal width
-    expanded: %{},  # Which items in the tree are expanded
-    system_messages: [],  # Messages from ZettSH to show in chat history
-    typing: [""],  # Currently typed message
-    typing_row: 0,  # Cursor row in command line
-    typing_col: 0,  # Cursor column in command line
-    mode: :normal,  # Overall mode
-    command: nil,  # Currently prepared normal-mode command
+    rows: 1, # Terminal height
+    cols: 1, # Terminal width
+    expanded: %{}, # Which items in the tree are expanded
+    system_messages: [], # Messages from ZettSH to show in chat history
+    typing: [""], # Currently typed message
+    typing_row: 0, # Cursor row in command line
+    typing_col: 0, # Cursor column in command line
+    mode: :normal, # Overall mode
+    command: nil, # Currently prepared normal-mode command
     command_count: "",  # Repeats for normal-mode commands
     motion: nil, # Currently prepared motion
     motion_count: "", # Repeats for motion
-    last_find: nil
+    last_find: nil # Last f, F, t or T that was executed
   ]
 end
 
@@ -540,6 +540,21 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {row, col}
   end
 
+  defp index_to_row(state, lines, target_i, i \\ 0, row \\ 0)
+  defp index_to_row(state, [], target_i, i, row), do: {row - 1, i - 1}
+  defp index_to_row(state, [line | lines], target_i, i, row) do
+    next_i = i + String.length(line)
+    if next_i > target_i do
+      {row, target_i - i}
+    else
+      index_to_row(state, lines, target_i, next_i, row + 1)
+    end
+  end
+  
+  defp index_to_pos(state, i) do
+    {row, remained} = index_to_row(state, state.typing, i)
+  end
+
   defp compound_motion(state, ms, offset),
     do: compound_motion(%{state | motion_count: motion_count(state) - 1}, ms)
   defp compound_motion(state, [m]),
@@ -635,6 +650,11 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> motion_count()
       |> min(length(state.typing))
     {row - 1, state.typing_col}
+  end
+
+  # Jump to grapheme
+  defp motion(state, "go") do
+    index_to_pos(state, motion_count(state))
   end
 
   # Jump to percent of lines, then first non-blank
@@ -810,7 +830,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_statusbar(%{state | motion: c})
   end
 
-  @gmotions ~w(g j k h m _ 0 ^ $)
+  @gmotions ~w(g j k h m _ 0 ^ $ o)
   def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
     execute(state, motion(state, "g" <> c))
   end
