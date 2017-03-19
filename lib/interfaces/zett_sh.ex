@@ -382,7 +382,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       ANSI.clear_line <>
       content
     IO.write str
-    set_typing_pos(state, {state.typing_row, state.typing_col})
+    set_typing_pos(state, state_pos(state))
   end
 
   def redraw state do
@@ -615,12 +615,14 @@ defmodule ZettKjett.Interfaces.ZettSH do
     compound_motion(state, ~w(k ^))
   end
 
+  # Up and first non-blank
+  defp motion(state, "-"), do: compound_motion(state, ~w(k ^))
+
+  # Down and first non-blank
+  defp motion(state, "+"), do: compound_motion(state, ~w(j ^))
+
   # Down to first non-blank
-  defp motion(state, "_") do
-    count = motion_count(state)
-    state = %{state | motion_count: to_string(count - 1)}
-    compound_motion(state, ~w(j ^))
-  end
+  defp motion(state, "_"), do: compound_motion(state, ~w(j, ^), -1)
 
   # Jump to bottom
   defp motion(%State{motion_count: ""} = state, "G") do
@@ -635,6 +637,17 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {row - 1, state.typing_col}
   end
 
+  # Jump to percent of lines, then first non-blank
+  defp motion(state, "%") do
+    count = motion_count(state)
+    if count > 100 do
+      state_pos(state)
+    else
+      row = div((length(state.typing) - 1) * count, 100)
+      motion(%{state | typing_row: row}, "^")
+    end
+  end
+
   # Beginning of line
   defp motion(state, "0") do
     {state.typing_row, 0}
@@ -647,10 +660,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> String.split(@nonblank, parts: 2)
     {state.typing_row, String.length(indent)}
   end
-
-  # Down to first non-blank
-  defp motion(state, "_"),
-    do: compound_motion(state, ~w(j, ^), -1)
 
   # Down to end of line
   defp motion(%State{motion_count: ""} = state, "$"),
@@ -716,7 +725,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {_pre, post} = typing_split(state)
     case post |> String.slice(1..-1) |> Utils.index(c, count) do
       {:error, _reason} ->
-        {state.typing_row, state.typing_col}
+        state_pos(state)
       {:ok, index} ->
         {state.typing_row, state.typing_col + index}
     end
@@ -728,7 +737,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {pre, _post} = typing_split(state)
     case pre |> String.reverse |> Utils.index(c, count) do
       {:error, _reason} ->
-        {state.typing_row, state.typing_col}
+        state_pos(state)
       {:ok, index} ->
         {state.typing_row, state.typing_col - index}
     end
@@ -739,7 +748,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     col = state.typing_col
     case motion(state, "f", c) do
       {_, ^col} ->  # No match
-        {state.typing_row, state.typing_col}
+        state_pos(state)
       {_, col} ->
         {state.typing_row, col - 1}
     end
@@ -750,7 +759,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     col = state.typing_col
     case motion(state, "F", c) do
       {_, ^col} ->  # No match
-        {state.typing_row, state.typing_col}
+        state_pos(state)
       {_, col} ->
         {state.typing_row, col + 1}
     end
@@ -758,7 +767,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Repeat last find when no last find exists
   defp motion(%State{last_find: nil} = state, m) when m in ~w(; ,),
-    do: {state.typing_row, state.typing_col}
+    do: state_pos(state)
 
   # Repeat last find
   defp motion(state, ";") do
@@ -806,7 +815,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     execute(state, motion(state, "g" <> c))
   end
 
-  @motions ~w(h j k l ^ $ + - \r _ G | ; ,)
+  @motions ~w(h j k l ^ $ + - \r _ G | ; , %)
   def handle_input(:normal, c, state) when c in @motions do
     execute(state, motion(state, c))
   end
@@ -826,7 +835,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_commandline %{
       state |
       typing: pre <> post,
-      typing_pos: String.length(pre)
+      typing_col: String.length(pre)
     }
   end
 
@@ -836,7 +845,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     %{
       state |
       typing: "",
-      typing_pos: 0
+      typing_col: 0
     }
   end
 
@@ -864,7 +873,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_commandline %{
       state |
       typing: str,
-      typing_pos: state.typing_pos + 1
+      typing_col: state.typing_pos + 1
     }
   end
 
