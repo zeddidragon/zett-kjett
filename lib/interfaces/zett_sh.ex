@@ -25,7 +25,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
   @friends_list_width 24
   @chat_x @friends_list_width + 1
   @newline "\n\r"
-  @nonblank ~r/[^\s]/
+  @word ~r/\w+/
+  @nonblank ~r/\S/
 
   @debug_text "first line
     Four scores and seven years ago
@@ -808,6 +809,14 @@ defmodule ZettKjett.Interfaces.ZettSH do
     motion(state, m, c)
   end
 
+  # Beginning of next @word
+  defp motion(state, "w") do
+  end
+
+  # Beginning of next @nonblank
+  defp motion(state, "W") do
+  end
+
 
   defp reset_command state do
     %{ state |
@@ -830,12 +839,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_statusbar(%{state | motion: c})
   end
 
-  @gmotions ~w(g j k h m _ 0 ^ $ o)
+  @gmotions ~w(g j k h m _ 0 ^ $ o e E)
   def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
     execute(state, motion(state, "g" <> c))
   end
 
-  @motions ~w(h j k l ^ $ + - \r _ G | ; , %)
+  @motions ~w(h j k l ^ $ + - \r _ G | ; , % w W e E b B)
   def handle_input(:normal, c, state) when c in @motions do
     execute(state, motion(state, c))
   end
