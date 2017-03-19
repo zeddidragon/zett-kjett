@@ -34,6 +34,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
     I did this multiline thing to check out multiline functionality
     And it was awesome
           Maybe
+
+    C'mon starsscream now ,break it.down
     I hope
     Additionally, this is a line that is so long it will hopefully stretch across multiple lines and teach me to do stuff that involves multiple lines but I guess we'll just have to see about that maybe let's copy-paste it for good measure while we're at it -- Additionally, this is a line that is so long it will hopefully stretch across multiple lines and teach me to do stuff that involves multiple lines but I guess we'll just have to see about that maybe let's copy-paste it for good measure while we're at it
       Tessst
@@ -814,29 +816,64 @@ defmodule ZettKjett.Interfaces.ZettSH do
     motion(state, m, c)
   end
 
-  # Beginning of next word
-  defp motion(state, c) when c in ~w(w \e[1;2C) do
+
+  defp next_string_match(string, regex, count) do
+    string
+      |> String.split(regex, include_captures: true)
+      |> Enum.reduce_while({:error, 0, count}, fn frag, {_, index, n} ->
+        cond do
+          String.trim(frag) == "" ->
+            {:cont, {:error, index + String.length(frag), n}}
+          n > 1 ->
+            {:cont, {:error, index + String.length(frag), n - 1}}
+          true ->
+            {:halt, {:ok, index, frag}}
+        end
+      end)
+  end
+
+  defp next_match(state, regex, count) do
     {_pre, post} = typing_split(state)
-    [current | frags] = post
-      |> String.split(@nonword, include_capture: true)
-    result = Enum.reduce_while frags, {:error, 1}, fn frag, {_, index} ->
-      if String.trim(frag) == "" do
-        {:cont, {:error, index + String.length(frag)}}
-      else
-        {:halt, {:ok, index}}
-      end
+    case next_string_match(post, regex, count) do
+      {:error, _, n} ->
+        row = state.typing_row + 1
+        if row >= length(state.typing) do
+          {:error, {state.typing_row, typing_cols(state) - 1}, ""}
+        else
+          next_match(%{state | typing_col: 0, typing_row: row}, regex, n)
+        end
+      {:ok, index, frag} ->
+        if String.match?(frag, @blank) do
+          next_match(%{state | typing_col: state.typing_col + index}, @blank, 1)
+        else
+          {:ok, {state.typing_row, state.typing_col + index}, frag}
+        end
     end
-    case result do
-      {:ok, index} ->
-        {state.typing_row, state.typing_col + index + String.length(current)}
-      {:error, _} ->
-        motion(state, "+")
-    end
+  end
+
+  defp cursor_on?(state, pattern) do
+    state
+      |> typing_line()
+      |> String.at(state.typing_col)
+      |> String.match?(pattern)
+  end
+
+  # Beginning of next word or nonblank
+  defp motion(state, c) when c in ~w(w \e[1;2C) do
+    count = motion_count(state) +
+      if cursor_on?(state, @blank) do 0 else 1 end
+    state
+      |> next_match(@nonword, count)
+      |> elem(1)
   end
 
   # Beginning of next nonblank
   defp motion(state, c) when c in ~w(W \eOC \e[1;5C) do
-    Utils.inspect c
+    count = motion_count(state) +
+      if cursor_on?(state, @blank) do 0 else 1 end
+    state
+      |> next_match(@blank, count)
+      |> elem(1)
   end
 
 
@@ -873,7 +910,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
       h j k l
       ^ $ + - _
       G | ; , %
-      w W e E b B
+      w W e E b B \e[1;2C \e[1;5C \e[1;2D \e[1;5D
       \e[H \e[F \e[A \e[B \e[C \e[D \e[1;5H \e[1;5F
     )
   ]
