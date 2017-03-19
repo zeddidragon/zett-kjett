@@ -27,7 +27,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   @newline "\n\r"
   @nonword ~r/\W+/
   @blank ~r/\s+/
-  @nonblank ~r/\S/
+  @nonblank ~r/\S+/
 
   @debug_text "first line
     Four scores and seven years ago
@@ -817,9 +817,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
 
-  defp next_string_match(string, regex, count) do
+  defp next_string_match(string, pattern, count) do
     string
-      |> String.split(regex, include_captures: true)
+      |> String.split(pattern, include_captures: true)
       |> Enum.reduce_while({:error, 0, count}, fn frag, {_, index, n} ->
         cond do
           String.trim(frag) == "" ->
@@ -832,19 +832,22 @@ defmodule ZettKjett.Interfaces.ZettSH do
       end)
   end
 
-  defp next_match(state, regex, count) do
+  defp next_match(state, pattern, count) do
     {_pre, post} = typing_split(state)
-    case next_string_match(post, regex, count) do
+    case next_string_match(post, pattern, count) do
       {:error, _, n} ->
         row = state.typing_row + 1
         if row >= length(state.typing) do
           {:error, {state.typing_row, typing_cols(state) - 1}, ""}
         else
-          next_match(%{state | typing_col: 0, typing_row: row}, regex, n)
+          next_match(%{state | typing_col: 0, typing_row: row}, pattern, n)
         end
       {:ok, index, frag} ->
         if String.match?(frag, @blank) do
-          next_match(%{state | typing_col: state.typing_col + index}, @blank, 1)
+          [blank, nonblank, _] =
+            String.split(frag, @nonblank, parts: 2, include_captures: true)
+          index = index + String.length(blank)
+          {:ok, {state.typing_row, state.typing_col + index}, nonblank}
         else
           {:ok, {state.typing_row, state.typing_col + index}, frag}
         end
@@ -858,24 +861,35 @@ defmodule ZettKjett.Interfaces.ZettSH do
       |> String.match?(pattern)
   end
 
-  # Beginning of next word or nonblank
-  defp motion(state, c) when c in ~w(w \e[1;2C) do
+  defp next_pattern_start(state, pattern) do
     count = motion_count(state) +
       if cursor_on?(state, @blank) do 0 else 1 end
     state
-      |> next_match(@nonword, count)
+      |> next_match(pattern, count)
       |> elem(1)
   end
 
-  # Beginning of next nonblank
-  defp motion(state, c) when c in ~w(W \eOC \e[1;5C) do
-    count = motion_count(state) +
-      if cursor_on?(state, @blank) do 0 else 1 end
-    state
-      |> next_match(@blank, count)
-      |> elem(1)
+  # Next beginning of word or nonblank
+  defp motion(state, c) when c in ~w(w \e[1;2C),
+    do: next_pattern_start(state, @nonword)
+
+  # Next beginning of nonblank
+  defp motion(state, c) when c in ~w(W \eOC \e[1;5C),
+    do: next_pattern_start(state, @blank)
+
+  defp next_pattern_end(state, pattern) do
+    state = %{state | typing_col: state.typing_col + 1}
+    case next_match(state, pattern, motion_count(state)) do
+      {:error, pos, _} -> pos
+      {:ok, {row, col}, frag} -> {row, col + String.length(frag) - 1}
+    end
   end
 
+  # Next end of word
+  defp motion(state, "e"), do: next_pattern_end(state, @nonword)
+
+  # Next end of nonblank
+  defp motion(state, "E"), do: next_pattern_end(state, @blank)
 
   defp reset_command state do
     %{ state |
