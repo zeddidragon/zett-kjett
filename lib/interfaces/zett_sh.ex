@@ -25,7 +25,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
   @friends_list_width 24
   @chat_x @friends_list_width + 1
   @newline "\n\r"
-  @word ~r/\w+/
+  @nonword ~r/\W+/
+  @blank ~r/\s+/
   @nonblank ~r/\S/
 
   @debug_text "first line
@@ -674,12 +675,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Beginning of line
-  defp motion(state, "0") do
+  defp motion(state, g) when g in ~w(0 \e[H) do
     {state.typing_row, 0}
-  end
-
-  defp motion(state, "\e[H") do
-    motion(%{state | motion_count: ""}, "|")
   end
 
   # First non-blank
