@@ -253,7 +253,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     "#{state.command_count}#{state.command}#{state.motion_count}#{state.motion}"
   end
 
-  defp status(%State{mode: :insert} = state) do
+  defp status(%State{mode: :insert} = _state) do
     me = ZettKjett.me
     if me do
       "<#{ZettKjett.protocol}>/ #{me.name}"
@@ -282,7 +282,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def history_width state do
-    width = state.cols - @chat_x
+    state.cols - @chat_x
   end
 
   defp cut_string string, width do
@@ -572,7 +572,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Left
-  defp motion(state, "h") do
+  defp motion(state, c) when c in ~w(h \e[D \b \d) do
     cols = typing_cols(state)
     count = motion_count(state)
     col = max(0, min(cols - 1, state.typing_col) - count)
@@ -580,7 +580,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Right
-  defp motion(state, "l") do
+  defp motion(state, c) when c in ["l", "\e[C", " "] do
     cols = typing_cols(state)
     count = motion_count(state)
     col =
@@ -593,14 +593,14 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Up
-  defp motion(state, "k") do
+  defp motion(state, c) when c in ["k", "\e[A", <<16>>] do
     count = motion_count(state)
     row = max(0, state.typing_row - count)
     {row, state.typing_col}
   end
 
   # Down
-  defp motion(state, "j") do
+  defp motion(state, c) when c in ["j", "\n", "\e[B", <<14>>] do
     count = motion_count(state)
     rows = length(state.typing)
     row = min(rows - 1, state.typing_row + count)
@@ -608,14 +608,14 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Up screen line
-  defp motion(state, "gk") do
+  defp motion(state, c) when c in ~w(gk g\e[A) do
     count = motion_count(state)
     {y, x} = state_screen(state)
     screen_to_pos(state, {y - count, x})
   end
 
   # Down screen line
-  defp motion(state, "gj") do
+  defp motion(state, c) when c in ~w(gj g\e[B) do
     count = motion_count(state)
     {y, x} = state_screen(state)
     screen_to_pos(state, {y + count, x})
@@ -636,22 +636,26 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Down and first non-blank
   defp motion(state, "+"), do: compound_motion(state, ~w(j ^))
+  defp motion(state, "\r"), do: motion(state, "+")
 
   # Down to first non-blank
   defp motion(state, "_"), do: compound_motion(state, ~w(j, ^), -1)
 
-  # Jump to bottom
+  # Jump to bottom, first non-blank
   defp motion(%State{motion_count: ""} = state, "G") do
-    {length(state.typing) - 1, state.typing_col}
+    motion(%{state | typing_row: length(state.typing) - 1}, "^")
   end
 
-  # Jump to row
-  defp motion(state, g) when g in ~w(G gg) do
+  # Jump to row, first non-blank
+  defp motion(state, c) when c in ~w(G gg \e[1;5H) do
     row = state
       |> motion_count()
       |> min(length(state.typing))
-    {row - 1, state.typing_col}
+    motion(%{state | typing_row: row - 1}, "^")
   end
+
+  # Jump to row, last grapheme
+  defp motion(state, "\e[1;5F"), do: compound_motion(state, ~w(gg $))
 
   # Jump to grapheme
   defp motion(state, "go") do
@@ -674,6 +678,10 @@ defmodule ZettKjett.Interfaces.ZettSH do
     {state.typing_row, 0}
   end
 
+  defp motion(state, "\e[H") do
+    motion(%{state | motion_count: ""}, "|")
+  end
+
   # First non-blank
   defp motion(state, "^") do
     line = typing_line(state)
@@ -683,28 +691,28 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Down to end of line
-  defp motion(%State{motion_count: ""} = state, "$"),
+  defp motion(%State{motion_count: ""} = state, c) when c in ~w($ \e[F),
     do: {state.typing_row, typing_cols(state) - 1}
-  defp motion(state, "$"),
+  defp motion(state, c) when c in ~w($ \e[F),
     do: compound_motion(state, ~w(j $), -1)
 
-  # Down to end of screen
-  defp motion(state, "g$") do
-    {y, x} = state_screen(state)
-    count = motion_count(state)
-    pos = screen_to_pos(state, {y + count - 1, state.cols - 1})
-    restrict(state, pos)
-  end
-
   # Down to beginning of screen
-  defp motion(state, "g0") do
+  defp motion(state, c) when c in ~w(g0 g\e[H) do
     {y, x} = state_screen(state)
     count = motion_count(state)
     pos = screen_to_pos(state, {y + count - 1, 0})
     restrict(state, pos)
   end
 
-  # First non-blenk on screen, no vertical motion
+  # Down to end of screen
+  defp motion(state, c) when c in ~w(g$ g\e[F) do
+    {y, x} = state_screen(state)
+    count = motion_count(state)
+    pos = screen_to_pos(state, {y + count - 1, state.cols - 1})
+    restrict(state, pos)
+  end
+
+  # First non-blank on screen, no vertical motion
   defp motion(state, "g^") do
     {y, x} = state_screen(state)
     col = min(typing_cols(state) - 1, state.typing_col)
@@ -839,12 +847,22 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_statusbar(%{state | motion: c})
   end
 
-  @gmotions ~w(g j k h m _ 0 ^ $ o e E)
+  @gmotions ~w(g j k h m _ 0 ^ $ o e E \e[H \e[F)
   def handle_input(:normal, c, %{motion: "g"} = state) when c in @gmotions do
     execute(state, motion(state, "g" <> c))
   end
 
-  @motions ~w(h j k l ^ $ + - \r _ G | ; , % w W e E b B)
+  @motions [
+    " ", "\r", "\n", "\b",
+    <<14>>, <<16>> |
+    ~w(
+      h j k l
+      ^ $ + - _
+      G | ; , %
+      w W e E b B
+      \e[H \e[F \e[A \e[B \e[C \e[D \e[1;5H \e[1;5F
+    )
+  ]
   def handle_input(:normal, c, state) when c in @motions do
     execute(state, motion(state, c))
   end
