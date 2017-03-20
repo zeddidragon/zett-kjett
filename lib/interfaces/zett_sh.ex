@@ -55,7 +55,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
           valid = Enum.join @modes, ", "
           raise ~s(Invalid mode "#{mode}". Valid modes are: [#{valid}])
       end
-    state = %State{mode: mode, typing: String.split(@debug_text, "\n")}
+    #state = %State{mode: mode, typing: String.split(@debug_text, "\n")}
+    state = %State{mode: :normal}
 
     Task.start_link fn ->
       Port.open({:spawn, "tty_sl -c -e"}, [:binary, :eof])
@@ -446,7 +447,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     %{ state |
       typing: [str],
       typing_col: String.length(str),
-      typing_row: length(state)
+      typing_row: 0
     }
   end
 
@@ -988,12 +989,12 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def handle_input(:insert, "\r", state) do  # Return
-    cmd = state.typing
+    cmd = Enum.join(state.typing, "\r\n")
     parse_input cmd
-    %{
-      state |
-      typing: "",
-      typing_col: 0
+    %{ state |
+      typing: [""],
+      typing_col: 0,
+      typing_row: 0
     }
   end
 
@@ -1017,11 +1018,15 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def handle_input :insert, c, state do
     {pre, post} = typing_split(state)
-    str = pre <> c <> post
+    typing = List.replace_at(
+      state.typing,
+      state.typing_row,
+      pre <> c <> post
+    )
     draw_commandline %{
       state |
-      typing: str,
-      typing_col: state.typing_pos + 1
+      typing: typing,
+      typing_col: state.typing_col + 1
     }
   end
 

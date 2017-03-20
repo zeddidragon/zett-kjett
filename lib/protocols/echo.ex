@@ -18,7 +18,7 @@ defmodule ZettKjett.Protocols.Echo do
         data = %{
           id: time,
           sent_at: time,
-          content: String.to_charlist(content)
+          content: content
         }
         send self(), data
       {:nick, user} ->
@@ -60,7 +60,34 @@ defmodule ZettKjett.Protocols.Echo do
     send __MODULE__, {:send_message, content}
   end
 
+  defp msg str do
+    time = Utils.now
+    sender = me()
+    {sender, %Message{
+      id: time,
+      sent_at: time,
+      content: str,
+      user_id: sender.id,
+      channel_id: 1
+    }}
+  end
+
   def history _ do
-    []
+    Enum.map([
+"# H1
+## H2
+### H3
+#### H4
+##### H5
+###### H6
+
+Alternatively, for H1 and H2, an underline-ish style:
+
+Alt-H1
+======
+
+Alt-H2
+------"
+    ], &msg/1)
   end
 end
