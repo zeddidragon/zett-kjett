@@ -88,4 +88,19 @@ defmodule ZettKjett.Utils do
       {:ok, index}
     end
   end
+
+  def next_pattern_match(string, pattern, count) do
+    string
+      |> String.split(pattern, include_captures: true)
+      |> Enum.reduce_while({:error, 0, count}, fn frag, {_, index, n} ->
+        cond do
+          String.trim(frag) == "" ->
+            {:cont, {:error, index + String.length(frag), n}}
+          n > 1 ->
+            {:cont, {:error, index + String.length(frag), n - 1}}
+          true ->
+            {:halt, {:ok, index, frag}}
+        end
+      end)
+  end
 end

@@ -816,25 +816,9 @@ defmodule ZettKjett.Interfaces.ZettSH do
     motion(state, m, c)
   end
 
-
-  defp next_string_match(string, pattern, count) do
-    string
-      |> String.split(pattern, include_captures: true)
-      |> Enum.reduce_while({:error, 0, count}, fn frag, {_, index, n} ->
-        cond do
-          String.trim(frag) == "" ->
-            {:cont, {:error, index + String.length(frag), n}}
-          n > 1 ->
-            {:cont, {:error, index + String.length(frag), n - 1}}
-          true ->
-            {:halt, {:ok, index, frag}}
-        end
-      end)
-  end
-
   defp next_match(state, pattern, count) do
     {_pre, post} = typing_split(state)
-    case next_string_match(post, pattern, count) do
+    case Utils.next_pattern_match(post, pattern, count) do
       {:error, _, n} ->
         row = state.typing_row + 1
         if row >= length(state.typing) do
@@ -850,6 +834,30 @@ defmodule ZettKjett.Interfaces.ZettSH do
           {:ok, {state.typing_row, state.typing_col + index}, nonblank}
         else
           {:ok, {state.typing_row, state.typing_col + index}, frag}
+        end
+    end
+  end
+
+  defp previous_match(state, pattern, count) do
+    {pre, _post} = typing_split(state)
+    case pre |> String.reverse() |> Utils.next_pattern_match(pattern, count) do
+      {:error, _, n} ->
+        if state.typing_row == 0 do
+          {:error, {0, 0}, ""}
+        else
+          row = state.typing_row - 1
+          col = typing_cols(state, row)
+          state = %{state | typing_col: col, typing_row: row}
+          previous_match(state, pattern, n)
+        end
+      {:ok, index, frag} ->
+        if String.match?(frag, @blank) do
+          [blank, nonblank, _] =
+            String.split(frag, @nonblank, parts: 2, include_captures: true)
+          index = index + String.length(blank)
+          {:ok, {state.typing_row, state.typing_col - index}, nonblank}
+        else
+          {:ok, {state.typing_row, state.typing_col - index}, frag}
         end
     end
   end
@@ -890,6 +898,34 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   # Next end of nonblank
   defp motion(state, "E"), do: next_pattern_end(state, @blank)
+
+  defp previous_pattern_start(state, pattern) do
+    case previous_match(state, pattern, motion_count(state)) do
+      {:error, pos, _} -> pos
+      {:ok, {row, col}, frag} -> {row, col - String.length(frag)}
+    end
+  end
+
+  # Previous beginning of word or nonblank
+  defp motion(state, c) when c in ~w(b \e[1;2D),
+    do: previous_pattern_start(state, @nonword)
+
+  # Previous beginning of nonblank
+  defp motion(state, c) when c in ~w(B \e[1;5D),
+    do: previous_pattern_start(state, @blank)
+
+  defp previous_pattern_end(state, pattern) do
+    count = motion_count(state) +
+      if cursor_on?(state, @blank) do 0 else 1 end
+    {_, {row, col}, _} = previous_match(state, pattern, count)
+    {row, max(col - 1, 0)}
+  end
+
+  # Previous end of word
+  defp motion(state, "ge"), do: previous_pattern_end(state, @nonword)
+
+  # Previous end of nonblank
+  defp motion(state, "gE"), do: previous_pattern_end(state, @blank)
 
   defp reset_command state do
     %{ state |
