@@ -318,18 +318,21 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def history_content {_, msg}, state do
     width = history_width(state) - 1
-    msg.content
-      |> String.split
-      |> Enum.flat_map(&cut_string(&1, width))
-      |> Enum.reduce([""], fn word, [line | lines] ->
-        if String.length(line) + String.length(word) < width do
-          [line <> " " <> word | lines]
-        else
-          [" " <> word | [line | lines]]
-        end
-      end)
-      |> Enum.reverse
-      |> Enum.map(&String.pad_trailing(&1, width))
+    lines = String.split(msg.content, "\n")
+    Enum.flat_map lines, fn line ->
+      line
+        |> String.split
+        |> Enum.flat_map(&cut_string(&1, width))
+        |> Enum.reduce([""], fn word, [line | lines] ->
+          if String.length(line) + String.length(word) < width do
+            [line <> " " <> word | lines]
+          else
+            [" " <> word | [line | lines]]
+          end
+        end)
+        |> Enum.reverse
+        |> Enum.map(&String.pad_trailing(&1, width))
+    end
   end
 
   def history_item [nil, {user, msg}], state do

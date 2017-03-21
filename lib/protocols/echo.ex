@@ -63,6 +63,7 @@ defmodule ZettKjett.Protocols.Echo do
   defp msg str do
     time = Utils.now
     sender = me()
+    Utils.inspect str
     {sender, %Message{
       id: time,
       sent_at: time,
@@ -73,21 +74,21 @@ defmodule ZettKjett.Protocols.Echo do
   end
 
   def history _ do
-    Enum.map([
-"# H1
-## H2
-### H3
-#### H4
-##### H5
-###### H6
+    Enum.map([ ~s(
+      # H1
+      ## H2
+      ### H3
+      #### H4
+      ##### H5
+      ###### H6
 
-Alternatively, for H1 and H2, an underline-ish style:
+      Alternatively, for H1 and H2, an underline-ish style:
 
-Alt-H1
-======
+      Alt-H1
+      ======
 
-Alt-H2
-------"
+      Alt-H2
+      ------)
     ], &msg/1)
   end
 end
