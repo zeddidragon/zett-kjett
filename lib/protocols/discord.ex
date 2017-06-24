@@ -57,7 +57,7 @@ defmodule ZettKjett.Protocols.Discord do
   end
 
   def tell chat, message do
-    body = %{ content: message }
+    body = %{content: message}
     Rest.post("/channels/#{chat.id}/messages", body: body)
       |> Map.get(:body)
   end

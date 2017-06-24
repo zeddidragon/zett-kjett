@@ -90,7 +90,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
 
   def message_loop state do
     state = receive do
-      {_, {:data, char}}->
+      {_, {:data, char}} ->
         handle_input state.mode, char, state
       {:system_message, msg} ->
         redraw %{
@@ -932,7 +932,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp motion(state, "gE"), do: previous_pattern_end(state, @blank)
 
   defp reset_command state do
-    %{ state |
+    %{state |
       command: nil,
       command_count: "",
       motion: nil,
@@ -994,7 +994,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   def handle_input(:insert, "\r", state) do  # Return
     cmd = Enum.join(state.typing, "\r\n")
     parse_input cmd
-    %{ state |
+    %{state |
       typing: [""],
       typing_col: 0,
       typing_row: 0
@@ -1067,7 +1067,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def execute(%State{command: nil} = state, to_pos) do
-    set_typing_pos(state, to_pos)
+    state
+      |> set_typing_pos(to_pos)
       |> reset_command()
       |> draw_statusbar()
   end

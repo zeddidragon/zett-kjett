@@ -19,7 +19,7 @@ defmodule ZettKjett.Utils do
     str |> String.trim |> String.to_integer
   end
 
-  def pad_leading list, intended_length, value \\ nil do 
+  def pad_leading list, intended_length, value \\ nil do
     n = length list
     if n < intended_length do
       Enum.concat fill((n + 1)..intended_length, value), list
@@ -28,7 +28,7 @@ defmodule ZettKjett.Utils do
     end
   end
 
-  def pad_trailing list, intended_length, value \\ nil do 
+  def pad_trailing list, intended_length, value \\ nil do
     n = length list
     if n < intended_length do
       Enum.concat list, fill((n + 1)..intended_length, value)
@@ -70,9 +70,11 @@ defmodule ZettKjett.Utils do
   end
   
   def now do
-    { :erlang.monotonic_time,
+    {
+      :erlang.monotonic_time,
       :erlang.unique_integer([:monotonic]),
-      :erlang.time_offset }
+      :erlang.time_offset,
+    }
   end
 
   def index(str, substr, n \\ 1) do

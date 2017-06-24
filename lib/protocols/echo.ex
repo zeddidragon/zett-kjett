@@ -74,7 +74,7 @@ defmodule ZettKjett.Protocols.Echo do
   end
 
   def history _ do
-    Enum.map([ ~s(
+    Enum.map([~s(
       # H1
       ## H2
       ### H3
