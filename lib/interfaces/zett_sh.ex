@@ -464,6 +464,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp command_height(state, range) do
     command_height(%{state | typing: Enum.slice(state.typing, 0, range)})
   end
+  defp command_height(%State{typing: ""}), do: 1
   defp command_height state do
     state.typing
       |> Enum.map(&wrapped_width(state, &1))
@@ -484,13 +485,17 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   defp set_typing_pos state, {row, col} do
-    state = %{ state |
+    state = %{state |
       typing_row: row,
-      typing_col: col
+      typing_col: col,
     }
     col = min(col, typing_cols(state) - 1)
     row = command_height(state, row) + div(col, state.cols)
-    Ctrl.move(command_row(state) + row, rem(col, state.cols) + 1) |> IO.write
+    state
+      |> command_row
+      |> Kernel.+(row)
+      |> Ctrl.move(rem(col, state.cols) + 1)
+      |> IO.write
     state
   end
 
@@ -986,7 +991,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     pre = String.slice(pre, 0..-2)
     draw_commandline %{
       state |
-      typing: pre <> post,
+      typing: String.split(pre <> post, "\n"),
       typing_col: String.length(pre)
     }
   end
