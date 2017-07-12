@@ -7,7 +7,7 @@ However, the project is still in early development and cannot do any of that.
 
 ## Discord
 
-Before you can use discord, you must enable it in config.tomml file and
+Before you can use discord, you must enable it in config.toml file and
 insert your token using the format
 ```toml
 [Protocols.Discord]
