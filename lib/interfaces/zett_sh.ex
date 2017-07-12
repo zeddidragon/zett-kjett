@@ -990,6 +990,25 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Insert mode
+  # Backspace
+  def handle_input(:insert, "\d", %{typing_col: 0, typing_row: 0} = state) do
+    state
+  end
+  def handle_input(:insert, "\d", %{typing_col: 0} = state) do  # Backspace
+    post = typing_line(state)
+    row = state.typing_row - 1
+    pre = typing_line(%{state | typing_row: row})
+    line = pre <> post
+    typing = state.typing
+      |> List.delete_at(state.typing_row)
+      |> List.replace_at(row, line)
+    redraw %{
+      state |
+      typing: typing,
+      typing_row: row,
+      typing_col: String.length(line)
+    }
+  end
   def handle_input(:insert, "\d", state) do  # Backspace
     {pre, post} = typing_split(state)
     pre = String.slice(pre, 0..-2)
