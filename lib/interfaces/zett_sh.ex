@@ -985,13 +985,17 @@ defmodule ZettKjett.Interfaces.ZettSH do
     draw_statusbar(%{state | motion_count: state.motion_count <> n})
   end
 
+  def handle_input(:normal, "o", state) do
+    execute(%{state | command: "o"})
+  end
+
   # Insert mode
-  def handle_input(_mode, "\d", state) do  # Backspace
+  def handle_input(:insert, "\d", state) do  # Backspace
     {pre, post} = typing_split(state)
     pre = String.slice(pre, 0..-2)
     draw_commandline %{
       state |
-      typing: String.split(pre <> post, "\n"),
+      typing: List.replace_at(state.typing, state.typing_row, pre <> post),
       typing_col: String.length(pre)
     }
   end
@@ -1024,6 +1028,10 @@ defmodule ZettKjett.Interfaces.ZettSH do
     set_typing_pos(state, state.typing_pos - 1)
   end
 
+  def handle_input _mode, "\e", state do  # Escape
+    set_mode(state, :normal)
+  end
+
   def handle_input :insert, c, state do
     {pre, post} = typing_split(state)
     typing = List.replace_at(
@@ -1039,10 +1047,6 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   # Mode transitions
-  def handle_input _mode, "\e", state do  # Escape
-    set_mode(state, :normal)
-  end
-
   def handle_input :normal, "i", state do
     set_mode(state, :insert)
   end
@@ -1067,10 +1071,31 @@ defmodule ZettKjett.Interfaces.ZettSH do
     set_typing(state, ":")
   end
 
+  @commands ~w(o O)
+  def handle_input(:normal, c, state) when c in @commands do
+    execute(%{state | command: c})
+  end
+
   def handle_input _mode, <<18>>, state do  # C-r
     redraw state
   end
 
+  defp command_count(%{command_count: "", motion_count: ""}), do: 1
+  defp command_count(%{command_count: "", motion_count: count}) do
+    count |> Utils.parse_int()
+  end
+  defp command_count(%{command_count: count}) do
+    count |> Utils.parse_int()
+  end
+
+  def execute(%State{mode: :normal, command: c} = state) when c in @commands do
+    count = command_count(state)
+    state
+      |> normal_command(c, count)
+      |> reset_command()
+      |> draw_commandline()
+      |> draw_statusbar()
+  end
   def execute(%State{command: nil} = state, to_pos) do
     state
       |> set_typing_pos(to_pos)
@@ -1083,6 +1108,22 @@ defmodule ZettKjett.Interfaces.ZettSH do
     state
   end
 
+  defp normal_command(state, "o", n) do
+    {pre, post} = Enum.split(state.typing, state.typing_row + 1)
+    %{state |
+      mode: :insert,
+      typing: pre ++ List.duplicate("", n) ++ post,
+      typing_row: state.typing_row + n,
+    }
+  end
+
+  defp normal_command(state, "O", n) do
+    {pre, post} = Enum.split(state.typing, state.typing_row)
+    %{state |
+      mode: :insert,
+      typing: pre ++ List.duplicate("", n) ++ post,
+    }
+  end
 end
 
 defmodule ZettKjett.Interfaces.ZettSH.Ctrl do
