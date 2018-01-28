@@ -1092,7 +1092,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     set_typing(state, ":")
   end
 
-  @commands ~w(o O)
+  @commands ~w(o O J)
   def handle_input(:normal, c, state) when c in @commands do
     execute(%{state | command: c})
   end
@@ -1153,6 +1153,15 @@ defmodule ZettKjett.Interfaces.ZettSH do
     %{state |
       mode: :insert,
       typing: pre ++ List.duplicate("", n) ++ post,
+    }
+  end
+
+  defp normal_command(state, "J", n) do
+    IO.puts(n)
+    {pre, post} = Enum.split(state.typing, state.typing_row)
+    {joined, post} = Enum.split(post, n + 1)
+    draw_history %{state |
+      typing: pre ++ [Enum.join(joined, "")] ++ post,
     }
   end
 end
