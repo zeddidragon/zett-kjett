@@ -4,6 +4,8 @@ defmodule ZettKjett.Interfaces.ZettSH.State do
     cols: 1, # Terminal width
     expanded: %{}, # Which items in the tree are expanded
     system_messages: [], # Messages from ZettSH to show in chat history
+    undo: nil,
+    redo: nil,
     typing: [""], # Currently typed message
     typing_row: 0, # Cursor row in command line
     typing_col: 0, # Cursor column in command line
@@ -19,7 +21,7 @@ end
 defmodule ZettKjett.Interfaces.ZettSH do
   alias IO.ANSI
   alias ZettKjett.Utils
-  alias ZettKjett.Interfaces.ZettSH.{Ctrl, State}
+  alias ZettKjett.Interfaces.ZettSH.{Ctrl, State, History}
   alias ZettKjett.Models.{Message}
   alias ZettKjett.Config
   @friends_list_width 24
@@ -55,8 +57,8 @@ defmodule ZettKjett.Interfaces.ZettSH do
           valid = Enum.join @modes, ", "
           raise ~s(Invalid mode "#{mode}". Valid modes are: [#{valid}])
       end
-    #state = %State{mode: mode, typing: String.split(@debug_text, "\n")}
-    state = %State{mode: :normal}
+    state = %State{mode: mode, typing: String.split(@debug_text, "\n")}
+    # state = %State{mode: :normal}
 
     Task.start_link fn ->
       Port.open({:spawn, "tty_sl -c -e"}, [:binary, :eof])
@@ -1107,9 +1109,19 @@ defmodule ZettKjett.Interfaces.ZettSH do
     count |> Utils.parse_int()
   end
 
+  def push_undo(state) do
+    %{ state | undo: state }
+  end
+
+  def pop_undo(state) when !state.undo, do: state
+  def pop_undo(state) do
+    %{ state.undo | redo: state }
+  end
+
   def execute(%State{mode: :normal, command: c} = state) when c in @commands do
     count = command_count(state)
     state
+      |> push_undo
       |> normal_command(c, count)
       |> reset_command()
       |> draw_commandline()
@@ -1151,7 +1163,7 @@ defmodule ZettKjett.Interfaces.ZettSH.Ctrl do
   def move row, col do
     "\e[#{row};#{col}H"
   end
-  def home, do: move(0,0)
+  def home, do: move(0, 0)
   def up n do
     "\e[#{n}A"
   end
