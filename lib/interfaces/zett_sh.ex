@@ -441,7 +441,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
   defp set_mode state, mode do
     offset = if state.mode == :insert do -1 else 0 end
     col = max(0, state.typing_col + offset)
-    %{state | mode: mode}
+    %{push_undo(state) | mode: mode}
       |> set_typing_pos({state.typing_row, col})
       |> reset_command()
       |> draw_statusbar()
@@ -1092,7 +1092,7 @@ defmodule ZettKjett.Interfaces.ZettSH do
     set_typing(state, ":")
   end
 
-  @commands ~w(o O J)
+  @commands ~w(o O U J)
   def handle_input(:normal, c, state) when c in @commands do
     execute(%{state | command: c})
   end
@@ -1110,12 +1110,19 @@ defmodule ZettKjett.Interfaces.ZettSH do
   end
 
   def push_undo(state) do
-    %{ state | undo: state }
+    if state.undo && state.undo.typing == state.typing do
+      state
+    else
+      %{ state | undo: state }
+    end
   end
 
-  def pop_undo(state) when !state.undo, do: state
   def pop_undo(state) do
-    %{ state.undo | redo: state }
+    if state.undo do
+      %{ state.undo | mode: :normal, redo: state }
+    else
+      state
+    end
   end
 
   def execute(%State{mode: :normal, command: c} = state) when c in @commands do
@@ -1156,11 +1163,17 @@ defmodule ZettKjett.Interfaces.ZettSH do
     }
   end
 
+  defp normal_command(state, "U", 1) do
+    state |> pop_undo |> pop_undo
+  end
+  defp normal_command(state, "U", n) do
+    state |> pop_undo |> normal_command("U", n - 1)
+  end
+
   defp normal_command(state, "J", n) do
-    IO.puts(n)
     {pre, post} = Enum.split(state.typing, state.typing_row)
     {joined, post} = Enum.split(post, n + 1)
-    draw_history %{state |
+    %{state |
       typing: pre ++ [Enum.join(joined, "")] ++ post,
     }
   end
